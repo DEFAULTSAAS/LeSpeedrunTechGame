@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Splines;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public struct CameraOrbitInfo
 {
@@ -29,27 +30,29 @@ public class CameraController : MonoBehaviour
     public bool EnableFreeFly;
     public bool FollowTarget;
 
-    private InputAction MoveInputAction;
-    private InputAction LookInputAction;
-    private Vector2 LookInputAcc;
+    private InputAction _moveInputAction;
+    private InputAction _lookInputAction;
+    private Vector2 _lookInputAcc;
 
-    CameraOrbitInfo TargetCameraOrbit;
-    CameraOrbitInfo CurrCameraOrbit;
+    CameraOrbitInfo _targetCameraOrbit;
+    CameraOrbitInfo _currCameraOrbit;
 
-    private Quaternion CameraOrientation = Quaternion.identity; // Orientation of camera around the player.
-    private Spline CameraSpline = new Spline();
-    private float CameraSplineSampleT;
+    private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
+    private Spline _cameraSpline = new Spline();
+    private float _cameraSplineSampleT;
 
-    private float CurrCameraSplineLength;
-    private float CurrCameraOrbitRadius;
-    private bool TooCloseToPlayer;
+    private float _currCameraSplineLength;
+    private float _currCameraOrbitRadius;
+    private bool _tooCloseToPlayer;
+
+    private List<Vector2> _lookInputVals;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        MoveInputAction = InputSystem.actions.FindAction("Move");
-        LookInputAction = InputSystem.actions.FindAction("Look");
-        CurrCameraOrbitRadius = TargetOrbitRadius;
+        _moveInputAction = InputSystem.actions.FindAction("Move");
+        _lookInputAction = InputSystem.actions.FindAction("Look");
+        _currCameraOrbitRadius = TargetOrbitRadius;
     }
 
     // Update is called once per frame
@@ -65,12 +68,14 @@ public class CameraController : MonoBehaviour
         if (!Target)
             return;
 
-        Vector2 lookInput = LookInputAction.ReadValue<Vector2>() * InputAxisFactorsTPS;
+        Vector2 lookInput = _lookInputAction.ReadValue<Vector2>() * InputAxisFactorsTPS;
         lookInput *= LookSpeedTPS * dt;
-        LookInputAcc += lookInput;
+        
+        _lookInputVals.Add(lookInput);
+        _lookInputAcc += lookInput;
 
-        CameraSplineSampleT += MoveInterpolationSpeed * dt;
-        transform.position = CameraSpline.EvaluatePosition(Mathf.Clamp01(CameraSplineSampleT));
+        _cameraSplineSampleT += MoveInterpolationSpeed * dt;
+        transform.position = _cameraSpline.EvaluatePosition(Mathf.Clamp01(_cameraSplineSampleT));
         transform.rotation = Quaternion.LookRotation((Target.position - transform.position).normalized, Vector3.up);
     }
 
@@ -78,49 +83,50 @@ public class CameraController : MonoBehaviour
     {
         if (!Target || EnableFreeFly)
         {
-            LookInputAcc = Vector2.zero;
+            _lookInputAcc = Vector2.zero;
             return;
         }
 
-        CurrCameraOrbit.Norm = (transform.position - Target.position).normalized;
-        CurrCameraOrbit.Pos = Target.position + (CurrCameraOrbitRadius * CurrCameraOrbit.Norm);
+        _currCameraOrbit.Norm = (transform.position - Target.position).normalized;
+        _currCameraOrbit.Pos = Target.position + (_currCameraOrbitRadius * _currCameraOrbit.Norm);
 
-        CameraOrientation = Quaternion.AngleAxis(LookInputAcc.x, Vector3.up) * Quaternion.AngleAxis(LookInputAcc.y, CameraOrientation * Vector3.right) * CameraOrientation;
-        TargetCameraOrbit.Norm = CameraOrientation * -Vector3.forward;
-        TargetCameraOrbit.Pos = Target.position + (TargetOrbitRadius * TargetCameraOrbit.Norm);
+        _cameraOrientation = Quaternion.AngleAxis(_lookInputAcc.x, Vector3.up) * Quaternion.AngleAxis(_lookInputAcc.y, _cameraOrientation * Vector3.right) * _cameraOrientation;
+        _targetCameraOrbit.Norm = _cameraOrientation * -Vector3.forward;
+        _targetCameraOrbit.Pos = Target.position + (TargetOrbitRadius * _targetCameraOrbit.Norm);
 
-        Vector3 PosDelta = TargetCameraOrbit.Pos - CurrCameraOrbit.Pos;
-        float TgntLength = PosDelta.magnitude * CameraOrbitTangentFactor;
+        Vector3 posDelta = _targetCameraOrbit.Pos - _currCameraOrbit.Pos;
+        float TgntLength = posDelta.magnitude * CameraOrbitTangentFactor;
 
-        CurrCameraOrbit.Tgnt = Vector3.ProjectOnPlane(PosDelta, CurrCameraOrbit.Norm).normalized;
-        TargetCameraOrbit.Tgnt = Vector3.ProjectOnPlane(PosDelta, TargetCameraOrbit.Norm).normalized;
+        _currCameraOrbit.Tgnt = Vector3.ProjectOnPlane(posDelta, _currCameraOrbit.Norm).normalized;
+        _targetCameraOrbit.Tgnt = Vector3.ProjectOnPlane(posDelta, _targetCameraOrbit.Norm).normalized;
 
-        CameraSpline.Clear();
-        CameraSpline.Add(CurrCameraOrbit.Pos);
-        CameraSpline.Add(Target.position + Vector3.Slerp(CurrCameraOrbit.Norm, TargetCameraOrbit.Norm, 0.5f) * CurrCameraOrbitRadius);
-        CameraSpline.Add(TargetCameraOrbit.Pos);
+        _cameraSpline.Clear();
+        _cameraSpline.Add(_currCameraOrbit.Pos);
+        _cameraSpline.Add(Target.position + Vector3.Slerp(_currCameraOrbit.Norm, _targetCameraOrbit.Norm, 0.5f) * _currCameraOrbitRadius);
+        _cameraSpline.Add(_targetCameraOrbit.Pos);
 
         for (int i = 0; i < 64; i++)
         {
-            Vector3 startPos = CameraSpline.EvaluatePosition(i / 64.0f);
-            Vector3 endPos = CameraSpline.EvaluatePosition((i + 1) / 64.0f);
+            Vector3 startPos = _cameraSpline.EvaluatePosition(i / 64.0f);
+            Vector3 endPos = _cameraSpline.EvaluatePosition((i + 1) / 64.0f);
 
             Debug.DrawLine(startPos, endPos, Color.red);
         }       
-        Debug.DrawLine(TargetCameraOrbit.Pos, TargetCameraOrbit.Pos + (Vector3.up * 3.0f), Color.darkBlue);
+        Debug.DrawLine(_targetCameraOrbit.Pos, _targetCameraOrbit.Pos + (Vector3.up * 3.0f), Color.darkBlue);
 
-        CameraSplineSampleT = 0.0f;
+        _lookInputVals.Clear();
+        _cameraSplineSampleT = 0.0f;
         //CurrCameraSplineLength = CurveUtility.ApproximateLength(CameraSpline);
-        LookInputAcc = Vector2.zero;
+        _lookInputAcc = Vector2.zero;
     }
 
     void UpdateFreeCamera(float inDeltaTime)
     {
-        Vector2 lookInput = LookInputAction.ReadValue<Vector2>() * InputAxisFactorsFPS;
+        Vector2 lookInput = _lookInputAction.ReadValue<Vector2>() * InputAxisFactorsFPS;
         lookInput *= LookSpeedFPS * inDeltaTime;
         transform.rotation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * Quaternion.AngleAxis(lookInput.y, transform.right) * transform.rotation;
 
-        Vector2 moveInput = MoveInputAction.ReadValue<Vector2>();
+        Vector2 moveInput = _moveInputAction.ReadValue<Vector2>();
         Vector3 forwardDir = transform.forward * moveInput.y + transform.right * moveInput.x;
         
         forwardDir.Normalize();
