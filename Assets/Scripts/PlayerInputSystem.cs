@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerColAnimManager : MonoBehaviour
+public class PlayerInputSystem : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -11,13 +11,6 @@ public class PlayerColAnimManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        float dt = Time.deltaTime;
-        
-    }
-
-    void FixedUpdate()
-    {
-        float dt = Time.fixedDeltaTime;
         
     }
 }
