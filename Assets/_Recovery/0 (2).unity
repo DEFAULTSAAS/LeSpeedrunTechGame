@@ -259,7 +259,7 @@ GameObject:
   - component: {fileID: 355849149}
   - component: {fileID: 355849148}
   - component: {fileID: 355849151}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: ColAnim
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -384,7 +384,7 @@ GameObject:
   - component: {fileID: 559890492}
   - component: {fileID: 559890493}
   - component: {fileID: 559890494}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -461,7 +461,7 @@ GameObject:
   - component: {fileID: 822436751}
   - component: {fileID: 822436755}
   - component: {fileID: 822436756}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -600,7 +600,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
   Target: {fileID: 559890492}
   LookSpeedFPS: {x: 20, y: 20}
-  LookSpeedTPS: {x: 10, y: 0.01}
+  LookSpeedTPS: {x: 10, y: 10}
   InputAxisFactorsFPS: {x: 1, y: -1}
   InputAxisFactorsTPS: {x: -1, y: -1}
   MoveSpeed: 10
