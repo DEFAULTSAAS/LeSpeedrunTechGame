@@ -67,6 +67,8 @@ public class CameraController : MonoBehaviour
     public float CollisionSphereRadius = 0.5f;
     public float MoveInterpolationSpeed = 1.0f;
     public float ControlPointCutoffDist = 0.05f;
+    public int NumCurveSections = 5;
+    public int CentreCurveSectionSize = 1;
     
     public bool EnableFreeFly;
     public bool FollowTarget;
