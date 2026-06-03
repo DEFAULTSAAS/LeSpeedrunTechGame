@@ -150,15 +150,15 @@ public class CameraController : MonoBehaviour
         else
             newCameraCurve.StartPoint = transform.position - Target.position;
 
-        Quaternion projectedOrientation = _cameraOrientation;
+        Quaternion predictedOrientation = _cameraOrientation;
         foreach (Vector2 lookInput in _lookInputVals)
         {
             RaycastHit info;
-            projectedOrientation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * 
-                                   Quaternion.AngleAxis(lookInput.y, projectedOrientation * Vector3.right) * 
-                                   projectedOrientation;
+            predictedOrientation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * 
+                                   Quaternion.AngleAxis(lookInput.y, predictedOrientation * Vector3.right) * 
+                                   predictedOrientation;
 
-            Vector3 controlPoint = projectedOrientation * -Vector3.forward;
+            Vector3 controlPoint = predictedOrientation * -Vector3.forward;
             bool isHit = 
                 Physics.SphereCast(new Ray(Target.position, controlPoint), CollisionSphereRadius, out info, 
                                    TargetOrbitRadius, LayerMask.NameToLayer("Camera"));
@@ -209,19 +209,19 @@ public class CameraController : MonoBehaviour
             if (newCameraCurve.ControlPoints.Count == 0)
             {
                 Vector3 middlePos = Vector3.Lerp(newCameraCurve.StartPoint, newCameraCurve.EndPoint, 0.5f);
-                Vector3 middleNorm = Vector3.Lerp(newCameraCurve.StartPoint.normalized, newCameraCurve.EndPoint.normalized, 0.5f);
+                Vector3 middleNorm = (middlePos - Vector3.zero).normalized;
 
-                startEndMag *= 0.5f;
+                float orbitDist = TargetOrbitRadius;
                 Vector3 rayOrigin = Target.position + newCameraCurve.StartPoint + middlePos;
 
                 RaycastHit info;
                 bool isHit = 
-                    Physics.SphereCast(new Ray(rayOrigin, middleNorm), 
-                    CollisionSphereRadius, out info, startEndMag, LayerMask.NameToLayer("Camera"));
+                    Physics.SphereCast(new Ray(Target.position, middleNorm), 
+                    CollisionSphereRadius, out info, orbitDist, LayerMask.NameToLayer("Camera"));
 
                 if (isHit)
-                    startEndMag = (info.point - rayOrigin).magnitude;
-                newCameraCurve.ControlPoints.Add(middlePos + (middleNorm * startEndMag));
+                    orbitDist = (info.point - Target.position).magnitude;
+                newCameraCurve.ControlPoints.Add(middleNorm * orbitDist);
             }
 
             _cameraMovementCurves.Add(newCameraCurve);   
@@ -262,7 +262,14 @@ public class CameraController : MonoBehaviour
         transform.position += forwardDir * MoveSpeed * inDeltaTime;
     }
 
-    static Vector3 CustomLerp(Vector3 inPosOne, Vector3 inPosTwo, float inDelta, float inMinDist = 0.001f)
+    // Adapted from https://github.com/godotengine/godot-proposals/issues/8906
+    public static Quaternion GetRotationAroundAxis(Quaternion inRot, Vector3 inAxis)
+    {
+        Vector3 projection = Vector3.ProjectOnPlane(new Vector3(inRot.x, inRot.y, inRot.z), inAxis);
+        return new Quaternion(projection.x, projection.y, projection.z, inRot.w).normalized;
+    }
+
+    public static Vector3 CustomLerp(Vector3 inPosOne, Vector3 inPosTwo, float inDelta, float inMinDist = 0.001f)
     {
         Vector3 toTwo = inPosTwo - inPosOne;
         float toTwoDist = toTwo.magnitude;
