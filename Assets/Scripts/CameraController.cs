@@ -59,13 +59,14 @@ public class CameraController : MonoBehaviour
     public Vector2 LookSpeedFPS = new (10.0f, 10.0f);
     public Vector2 LookSpeedTPS = new (10.0f, 10.0f);
     public Vector2 InputAxisFactorsFPS = new Vector2(1.0f, -1.0f); // For adjust look inversion and such.
-    public Vector2 InputAxisFactorsTPS = new Vector2(-1.0f, 1.0f);
+    public Vector2 InputAxisFactorsTPS = new Vector2(1.0f, -1.0f);
 
     public float MoveSpeed = 10.0f;
     public float MoveSpeedRampUp = 1.0f;
     public float TargetOrbitRadius = 4.0f;
     public float CollisionSphereRadius = 0.5f;
     public float MoveInterpolationSpeed = 1.0f;
+    public float ControlPointCutoffDist = 0.05f;
     
     public bool EnableFreeFly;
     public bool FollowTarget;
@@ -130,8 +131,6 @@ public class CameraController : MonoBehaviour
         _lookInputVals.Add(lookInput);
         _lookInputAcc += lookInput;
 
-        _currCameraCurveT += MoveInterpolationSpeed * dt;
-        //transform.position = _cameraSpline.EvaluatePosition(Mathf.Clamp01(_cameraSplineSampleT));
         transform.rotation = Quaternion.LookRotation((Target.position - transform.position).normalized, Vector3.up);
     }
 
@@ -196,9 +195,19 @@ public class CameraController : MonoBehaviour
         float startEndMag = (newCameraCurve.EndPoint - newCameraCurve.StartPoint).magnitude;
         if (startEndMag > 0.01f)
         {
+            // Stops controls points being too close to the start and end points,
+            // which causes linear trajectories to be created, leading to a stuttering effect.
+            List<Vector3> filteredControlPoints = new();
+            foreach (Vector3 controlPoint in newCameraCurve.ControlPoints)
+            {
+                if ((controlPoint - newCameraCurve.StartPoint).magnitude > ControlPointCutoffDist &&
+                    (controlPoint - newCameraCurve.EndPoint).magnitude > ControlPointCutoffDist)
+                    filteredControlPoints.Add(controlPoint);
+            }
+            newCameraCurve.ControlPoints = filteredControlPoints;
+
             if (newCameraCurve.ControlPoints.Count == 0)
             {
-                Debug.Log("I have been triggered dummy");
                 Vector3 middlePos = Vector3.Lerp(newCameraCurve.StartPoint, newCameraCurve.EndPoint, 0.5f);
                 Vector3 middleNorm = Vector3.Lerp(newCameraCurve.StartPoint.normalized, newCameraCurve.EndPoint.normalized, 0.5f);
 
