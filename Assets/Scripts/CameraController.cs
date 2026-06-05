@@ -1,15 +1,6 @@
 using UnityEngine;
-using UnityEngine.Splines;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
-using UnityEngine.UIElements;
-
-public struct CameraOrbitInfo
-{
-    public Vector3 Pos;
-    public Vector3 Norm;
-    public Vector3 Tgnt;
-}
 
 public struct HighOrderBezier
 {
@@ -65,37 +56,65 @@ public class CameraController : MonoBehaviour
     public float MoveSpeedRampUp = 1.0f;
     public float TargetOrbitRadius = 4.0f;
     public float CollisionSphereRadius = 0.5f;
-    public float MoveInterpolationSpeed = 1.0f;
-    public float ControlPointCutoffDist = 0.05f;
-    public int NumCurveSections = 5;
-    public int CentreCurveSectionSize = 1;
+    public float SphereRadiusIncreaseFactor = 1.25f; // How much to increase sphere cast radius by.
+    public float SphereHitInfluenceCutoffAngle = 35.0f;
+    public int MaxNumSphereCasts = 64;
     
     public bool EnableFreeFly;
     public bool FollowTarget;
 
     private InputAction _moveInputAction;
     private InputAction _lookInputAction;
-    private Vector2 _lookInputAcc;
 
-    private CameraOrbitInfo _prevCameraOrbit;
-    private CameraOrbitInfo _targetCameraOrbit;
+    private List<Vector3> _cameraSphereCastHits = new();
+    private List<Vector3> _cameraSphereCastDirs = new();
+    private float _cameraSphereCastRadius = 1.0f;
     private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
-    
-    private List<HighOrderBezier> _cameraMovementCurves = new();
-    private float _currCameraCurveLength;
-    private float _currCameraCurveT = 0.0f;
-    
-    private float _currCameraOrbitRadius;
-    private bool _tooCloseToPlayer;
-
-    private List<Vector2> _lookInputVals = new();
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _lookInputAction = InputSystem.actions.FindAction("Look");
-        _currCameraOrbitRadius = TargetOrbitRadius;
+        _cameraSphereCastHits.Capacity = MaxNumSphereCasts;
+
+        // Adapted from https://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
+        for (int i = 0; i < MaxNumSphereCasts; i++)
+        {
+            float theta = 2.0f * Mathf.PI * (i / GoldenRatio);
+            float phi = Mathf.Acos(1.0f - 2.0f * ((i + 0.5f) / MaxNumSphereCasts));
+            
+            Vector3 dir;
+            dir.x = Mathf.Cos(theta) * Mathf.Sin(phi);
+            dir.y = Mathf.Sin(theta) * Mathf.Sin(phi);
+            dir.z = Mathf.Cos(phi);
+
+            _cameraSphereCastDirs.Add(dir);
+        }
+
+        float maxNearestAngle = 0.0f;
+        for (int i = 0; i < _cameraSphereCastDirs.Count; i++)
+        {
+            Vector3 dir = _cameraSphereCastDirs[i];
+            float maxDot = -1.0f;
+
+            for (int j = 0; j < _cameraSphereCastDirs.Count; j++)
+            {
+                if (i == j)
+                    continue;
+
+                float dot = Vector3.Dot(dir, _cameraSphereCastDirs[j]);
+                if (dot > maxDot)
+                    maxDot = dot;
+            }
+
+            float angle = Mathf.Acos(maxDot);
+            if (angle > maxNearestAngle)
+                maxNearestAngle = angle; 
+        }
+
+        _cameraSphereCastRadius = maxNearestAngle * 0.6f;
+        _cameraSphereCastRadius *= SphereRadiusIncreaseFactor;
     }
 
     // Update is called once per frame
@@ -111,129 +130,45 @@ public class CameraController : MonoBehaviour
         if (!Target)
             return;
 
-        if (_cameraMovementCurves.Count > 0 && _currCameraCurveT < 1.0f)
-        {
-            transform.position = Target.position + _cameraMovementCurves[0].SamplePos(_currCameraCurveT);
-            _currCameraCurveT += (MoveInterpolationSpeed / _currCameraCurveLength) * dt; 
-        }
-        if (_cameraMovementCurves.Count > 0 && _currCameraCurveT >= 1.0f)
-        {
-            _cameraMovementCurves.RemoveAt(0);
-            _currCameraCurveT = 0.0f;
-            
-            if (_cameraMovementCurves.Count > 0)
-                _currCameraCurveLength = _cameraMovementCurves[0].CalcApproxLength(64);
-        }
-        if (_cameraMovementCurves.Count == 0)
-            transform.position = _targetCameraOrbit.Pos;
-
         Vector2 lookInput = _lookInputAction.ReadValue<Vector2>() * InputAxisFactorsTPS;
         lookInput *= LookSpeedTPS * dt;
-        
-        _lookInputVals.Add(lookInput);
-        _lookInputAcc += lookInput;
 
-        transform.rotation = Quaternion.LookRotation((Target.position - transform.position).normalized, Vector3.up);
+        _cameraOrientation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * 
+                             Quaternion.AngleAxis(lookInput.y, _cameraOrientation * Vector3.right) * 
+                             _cameraOrientation;
+        
+        
+        transform.rotation = _cameraOrientation; //Quaternion.LookRotation((Target.position - transform.position).normalized, Vector3.up);
     }
 
+    static readonly float GoldenRatio = (1.0f + Mathf.Sqrt(5.0f)) * 0.5f;
     void FixedUpdate()
     {
         if (!Target || EnableFreeFly)
         {
-            _lookInputAcc = Vector2.zero;
             return;
         }
 
-        HighOrderBezier newCameraCurve;
-        newCameraCurve.ControlPoints = new();
-
-        if (_cameraMovementCurves.Count > 0)
-            newCameraCurve.StartPoint = _cameraMovementCurves[_cameraMovementCurves.Count - 1].EndPoint;
-        else
-            newCameraCurve.StartPoint = transform.position - Target.position;
-
-        Quaternion prevOrientation = _cameraOrientation;
-
-        _cameraOrientation = Quaternion.AngleAxis(_lookInputAcc.x, Vector3.up) * Quaternion.AngleAxis(_lookInputAcc.y, _cameraOrientation * Vector3.right) * _cameraOrientation;
-        _targetCameraOrbit.Norm = _cameraOrientation * -Vector3.forward;
-        
-        newCameraCurve.ControlPoints.Add(GetCentreControlPoint(prevOrientation * -Vector3.forward * TargetOrbitRadius, _targetCameraOrbit.Norm * TargetOrbitRadius, prevOrientation, _cameraOrientation));
-        
+        _cameraSphereCastHits.Clear();
+        foreach (Vector3 dir in _cameraSphereCastDirs)
         {
-            RaycastHit info;
-            bool isHit = 
-                Physics.SphereCast(new Ray(Target.position, _targetCameraOrbit.Norm), CollisionSphereRadius, out info, 
-                                   TargetOrbitRadius, LayerMask.NameToLayer("Camera"));
+            RaycastHit hit;
+            bool isHit = Physics.SphereCast(Target.position, _cameraSphereCastRadius, dir, out hit, TargetOrbitRadius, LayerMask.NameToLayer("Camera"));
 
-            float orbitDist = TargetOrbitRadius;
             if (isHit)
-                orbitDist = (info.point - Target.position).magnitude;
-
-            newCameraCurve.EndPoint = orbitDist * _targetCameraOrbit.Norm;
-            _targetCameraOrbit.Pos = Target.position + newCameraCurve.EndPoint;
+                _cameraSphereCastHits.Add(hit.point - Target.position);
         }
+    }
 
-        if (_cameraMovementCurves.Count == 0)
-        {
-            _currCameraCurveLength = newCameraCurve.CalcApproxLength(64);
-            _currCameraCurveT = 0.0f;   
-        }
+    Vector3 GetAdjustedCameraPos()
+    {
+        Vector3 cameraDir = _cameraOrientation * -Vector3.forward;
+        if (_cameraSphereCastHits.Count == 0)
+            return cameraDir * TargetOrbitRadius;
 
-        float startEndMag = (newCameraCurve.EndPoint - newCameraCurve.StartPoint).magnitude;
-        if (startEndMag > 0.01f)
-        {
-            // Stops controls points being too close to the start and end points,
-            // which causes linear trajectories to be created, leading to a stuttering effect.
-            List<Vector3> filteredControlPoints = new();
-            foreach (Vector3 controlPoint in newCameraCurve.ControlPoints)
-            {
-                if ((controlPoint - newCameraCurve.StartPoint).magnitude > ControlPointCutoffDist &&
-                    (controlPoint - newCameraCurve.EndPoint).magnitude > ControlPointCutoffDist)
-                    filteredControlPoints.Add(controlPoint);
-            }
-            newCameraCurve.ControlPoints = filteredControlPoints;
 
-            if (newCameraCurve.ControlPoints.Count == 0)
-            {
-                Vector3 middlePos = Vector3.Lerp(newCameraCurve.StartPoint, newCameraCurve.EndPoint, 0.5f);
-                Vector3 middleNorm = (middlePos - Vector3.zero).normalized;
 
-                float orbitDist = TargetOrbitRadius;
-                Vector3 rayOrigin = Target.position + newCameraCurve.StartPoint + middlePos;
-
-                RaycastHit info;
-                bool isHit = 
-                    Physics.SphereCast(new Ray(Target.position, middleNorm), 
-                    CollisionSphereRadius, out info, orbitDist, LayerMask.NameToLayer("Camera"));
-
-                if (isHit)
-                    orbitDist = (info.point - Target.position).magnitude;
-                newCameraCurve.ControlPoints.Add(middleNorm * orbitDist);
-            }
-
-            _cameraMovementCurves.Add(newCameraCurve);   
-        }
-
-        if (_cameraMovementCurves.Count > 0)
-        {
-            for (int i = 0; i < 64; i++)
-            {
-                Vector3 startPos = _cameraMovementCurves[0].SamplePos(i / 64.0f);
-                Vector3 endPos = _cameraMovementCurves[0].SamplePos((i + 1) / 64.0f);
-
-                Debug.DrawLine(startPos, endPos, Color.red);
-            }
-
-            foreach (Vector3 controlPoint in _cameraMovementCurves[0].ControlPoints)
-            {
-                Debug.DrawLine(controlPoint, controlPoint + Vector3.up, Color.limeGreen);
-                Debug.Log(controlPoint);
-            }   
-        }
-        Debug.DrawLine(_targetCameraOrbit.Pos, _targetCameraOrbit.Pos + (Vector3.up * 3.0f), Color.darkBlue);
-
-        _lookInputVals.Clear();
-        _lookInputAcc = Vector2.zero;
+        return Vector3.zero;
     }
 
     void UpdateFreeCamera(float inDeltaTime)
