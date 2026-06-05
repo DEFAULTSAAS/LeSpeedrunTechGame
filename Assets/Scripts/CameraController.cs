@@ -77,8 +77,8 @@ public class CameraController : MonoBehaviour
     private InputAction _lookInputAction;
     private Vector2 _lookInputAcc;
 
+    private CameraOrbitInfo _prevCameraOrbit;
     private CameraOrbitInfo _targetCameraOrbit;
-    private CameraOrbitInfo _currCameraOrbit;
     private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
     
     private List<HighOrderBezier> _cameraMovementCurves = new();
@@ -152,28 +152,13 @@ public class CameraController : MonoBehaviour
         else
             newCameraCurve.StartPoint = transform.position - Target.position;
 
-        Quaternion predictedOrientation = _cameraOrientation;
-        foreach (Vector2 lookInput in _lookInputVals)
-        {
-            RaycastHit info;
-            predictedOrientation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * 
-                                   Quaternion.AngleAxis(lookInput.y, predictedOrientation * Vector3.right) * 
-                                   predictedOrientation;
-
-            Vector3 controlPoint = predictedOrientation * -Vector3.forward;
-            bool isHit = 
-                Physics.SphereCast(new Ray(Target.position, controlPoint), CollisionSphereRadius, out info, 
-                                   TargetOrbitRadius, LayerMask.NameToLayer("Camera"));
-
-            float orbitDist = TargetOrbitRadius;
-            if (isHit)
-                orbitDist = (info.point - Target.position).magnitude;
-
-            newCameraCurve.ControlPoints.Add(controlPoint * orbitDist);
-        }
+        Quaternion prevOrientation = _cameraOrientation;
 
         _cameraOrientation = Quaternion.AngleAxis(_lookInputAcc.x, Vector3.up) * Quaternion.AngleAxis(_lookInputAcc.y, _cameraOrientation * Vector3.right) * _cameraOrientation;
         _targetCameraOrbit.Norm = _cameraOrientation * -Vector3.forward;
+        
+        newCameraCurve.ControlPoints.Add(GetCentreControlPoint(prevOrientation * -Vector3.forward * TargetOrbitRadius, _targetCameraOrbit.Norm * TargetOrbitRadius, prevOrientation, _cameraOrientation));
+        
         {
             RaycastHit info;
             bool isHit = 
@@ -262,6 +247,32 @@ public class CameraController : MonoBehaviour
         
         forwardDir.Normalize();
         transform.position += forwardDir * MoveSpeed * inDeltaTime;
+    }
+
+    public static Vector3 GetCentreControlPoint(Vector3 inFrom, Vector3 inTo, Quaternion inStartRot, Quaternion inInputRot)
+    {
+        Vector3 inFromUnit = inFrom.normalized;
+        Vector3 inToUnit = inTo.normalized;
+        
+        Vector3 toFrom = inFrom - inTo;
+        Vector3 toFromTangent = Vector3.ProjectOnPlane(toFrom, inToUnit).normalized;
+
+        float angle = Mathf.Acos(Vector3.Dot(inFromUnit, inToUnit));
+        if ((Mathf.Rad2Deg * angle) > 120.0f)
+        {
+            Vector3 norm = Quaternion.Slerp(inStartRot, inInputRot, 0.5f) * inFromUnit;
+            return norm * toFrom.magnitude * 0.5f;
+        }
+        
+        float denom = Vector3.Dot(inFromUnit, toFromTangent);        
+        if (Mathf.Abs(denom) <= 0.0001f)
+        {
+            Vector3 norm = Quaternion.Slerp(inStartRot, inInputRot, 0.5f) * inFromUnit;
+            return norm * toFrom.magnitude * 0.5f;
+        }
+
+        float d = Vector3.Dot(inFromUnit, toFrom) / denom;
+        return inTo + (toFromTangent * d);
     }
 
     // Adapted from https://github.com/godotengine/godot-proposals/issues/8906
