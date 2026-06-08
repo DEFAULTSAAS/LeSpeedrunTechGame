@@ -449,7 +449,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   PCAM: {fileID: 355849151}
   PlayerCamera: {fileID: 822436755}
-  JumpCurve:
+  AnimationCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -462,28 +462,37 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.19812071
-      value: 0.49937946
-      inSlope: 2.1125052
-      outSlope: 2.1125052
+      time: 0.23536342
+      value: 0.6451706
+      inSlope: 2.6379204
+      outSlope: 2.6379204
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.03428747
+      outWeight: 0.10999735
     - serializedVersion: 3
-      time: 1.0042114
-      value: 0.79112625
-      inSlope: -1.6449981
-      outSlope: -1.6449981
+      time: 0.45356187
+      value: 0.9682045
+      inSlope: 0.2633462
+      outSlope: 0.2633462
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0.04750799
+      inWeight: 0.16104306
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.99108887
+      value: 0.60253906
+      inSlope: -1.8724625
+      outSlope: -1.8724625
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.05855523
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  JumpTime: 0.15
-  JumpHeight: 5
+  JumpTime: 1.5
+  JumpHeight: 2
 --- !u!1 &822436750
 GameObject:
   m_ObjectHideFlags: 0
@@ -714,7 +723,7 @@ Transform:
   m_GameObject: {fileID: 1295517925}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0.74}
+  m_LocalPosition: {x: 0, y: 0, z: 0.75}
   m_LocalScale: {x: 0.1, y: 0.1, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -268,7 +268,7 @@ public class CameraController : MonoBehaviour
         transform.rotation = _cameraOrientation;
 
         _prevRadius = targetRadius;
-        Debug.Log(Vector3.Distance(transform.position, Target.position));
+        //Debug.Log(Vector3.Distance(transform.position, Target.position));
     }
 
     public static readonly float GoldenRatio = (1.0f + Mathf.Sqrt(5.0f)) * 0.5f;
@@ -303,7 +303,12 @@ public class CameraController : MonoBehaviour
         _backupSpherecastResults.Dispose();
     }
 
-    void RefreshSpherecastCommands()
+    public Quaternion GetCameraOrientation()
+    {
+        return _cameraOrientation;
+    }
+
+    private void RefreshSpherecastCommands()
     {
         _cameraSphereCastRadius = _currTargetOrbitRadius * Mathf.Sin(_angularSphereCastRadius);
         _cameraSphereCastRadius *= SphereRadiusIncreaseFactor;
@@ -341,7 +346,7 @@ public class CameraController : MonoBehaviour
         _spherecastsJob = JobHandle.CombineDependencies(spherecastsJob, backupSpherecastsJob);
     }
 
-    Vector3 GetAdjustedCameraPos()
+    private Vector3 GetAdjustedCameraPos()
     {
         Vector3 cameraDir = _cameraOrientation * -Vector3.forward;
         if (_cameraSphereCastHits.Count == 0)
@@ -362,7 +367,7 @@ public class CameraController : MonoBehaviour
         return cameraDir * (weightedRadiusSum / weightSum);
     }
 
-    void UpdateFreeCamera(float inDeltaTime)
+    private void UpdateFreeCamera(float inDeltaTime)
     {
         Vector2 lookInput = _lookInputAction.ReadValue<Vector2>() * InputAxisFactorsFPS;
         lookInput *= LookSpeedFPS * inDeltaTime;
