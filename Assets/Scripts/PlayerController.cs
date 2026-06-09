@@ -61,7 +61,7 @@ public class PlayerController : MonoBehaviour
 
         if (_remainingJumpTime > 0.0f)
         {
-            _rigidbody.AddForce((Vector3.up * JumpCurve.Evaluate((JumpTime - _remainingJumpTime) / JumpTime) * JumpHeight) * 9.81f * dt, ForceMode.Impulse);
+            _rigidbody.AddForce(((Vector3.up * 9.81f) + (Vector3.up * JumpCurve.Evaluate((JumpTime - _remainingJumpTime) / JumpTime) * JumpHeight)) * dt, ForceMode.Impulse);
             _remainingJumpTime -= dt;   
         }
     }
