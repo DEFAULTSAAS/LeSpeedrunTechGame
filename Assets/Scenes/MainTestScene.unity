@@ -501,7 +501,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   JumpTime: 2
-  JumpHeight: 4
+  JumpHeight: 2
 --- !u!1 &822436750
 GameObject:
   m_ObjectHideFlags: 0

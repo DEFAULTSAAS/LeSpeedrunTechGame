@@ -21,9 +21,10 @@ public class PlayerController : MonoBehaviour
     
     private float _momentumMag;
     private float _remainingJumpTime;
-    private float _jumpCurveMaxX = 1.0f;
     private bool _isFirstJumpUpdate = false;
     
+    [SerializeField] private AnimationCurve _jumpCurve;
+
     private InputAction _jumpInputAction;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -44,6 +45,17 @@ public class PlayerController : MonoBehaviour
             throw new NullReferenceException("PlayerController could not get a rigidbody!");
         }
 
+        Keyframe[] adjustedKeys = JumpCurve.keys;
+        float jumpCurveMax = JumpCurve.keys[JumpCurve.keys.Length - 1].time;
+        float invJumpCurveMaxX = 1.0f / jumpCurveMax;
+        for (int i = 0; i < adjustedKeys.Length; i++)
+        {
+            adjustedKeys[i].inTangent *= jumpCurveMax;
+            adjustedKeys[i].outTangent *= jumpCurveMax;
+            adjustedKeys[i].time *= invJumpCurveMaxX;
+        }
+        _jumpCurve = new (adjustedKeys);
+        
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
     }
 
@@ -53,7 +65,6 @@ public class PlayerController : MonoBehaviour
         if (_remainingJumpTime <= 0.0f && _jumpInputAction.WasPerformedThisFrame())
         {
             _remainingJumpTime = JumpTime;
-            _jumpCurveMaxX = JumpCurve.keys[JumpCurve.keys.Length - 1].time;
             _isFirstJumpUpdate = true;
         }
     }
@@ -65,7 +76,7 @@ public class PlayerController : MonoBehaviour
         if (_remainingJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
             float t = (JumpTime - _remainingJumpTime) / JumpTime;
-            float acceleration = CalcCurveAcceleration(JumpCurve, _jumpCurveMaxX, t, dt / JumpTime);
+            float acceleration = CalcCurveAcceleration(_jumpCurve, 1.0f, t, dt / JumpTime);
             
             float force = acceleration * JumpHeight;
             force /= JumpTime * JumpTime;
@@ -77,7 +88,7 @@ public class PlayerController : MonoBehaviour
         else if (_isFirstJumpUpdate)
         {
             _isFirstJumpUpdate = false;
-            float firstCurveHeight = JumpCurve.Evaluate(dt / JumpTime) * JumpHeight;
+            float firstCurveHeight = _jumpCurve.Evaluate(dt / JumpTime) * JumpHeight;
             float speed = firstCurveHeight / dt;
             
             speed -= Physics.gravity.y * dt;
