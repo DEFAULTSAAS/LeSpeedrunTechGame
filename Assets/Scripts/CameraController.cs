@@ -189,10 +189,12 @@ public class CameraController : MonoBehaviour
                 RaycastHit hit = new();
                 Vector3 dir = _cameraSphereCastDirs[i];
 
-                if (_spherecastResults[i].collider != null)
-                    hit = _spherecastResults[i];
-                else if (_backupSpherecastResults[i].collider != null)
+                // Backup sphere casts should always be smaller and more accurate,
+                // so try and use them first.
+                if (_backupSpherecastResults[i].collider != null)
                     hit = _backupSpherecastResults[i];
+                else if (_spherecastResults[i].collider != null)
+                    hit = _spherecastResults[i];
 
                 if (hit.collider == null)
                     continue;
