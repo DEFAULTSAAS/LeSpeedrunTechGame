@@ -374,6 +374,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d98a41a1cbe18b328895a202bc25cf18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerColAnimManager
+  MainPlayerCollider: {fileID: 0}
 --- !u!1 &559890489
 GameObject:
   m_ObjectHideFlags: 0
@@ -449,7 +450,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   PCAM: {fileID: 355849151}
   PlayerCamera: {fileID: 822436755}
-  JumpCurve:
+  FirstJumpCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -462,46 +463,58 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.19468512
-      value: 0.74292976
-      inSlope: 4.1664543
-      outSlope: 4.1664543
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0.13216391
-      outWeight: 0.03428747
-    - serializedVersion: 3
-      time: 0.30658084
-      value: 0.99687016
-      inSlope: 0.3221499
-      outSlope: 0.3221499
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.23429595
-      outWeight: 0.25317723
-    - serializedVersion: 3
-      time: 0.4345446
-      value: 0.9331849
-      inSlope: -1.5320497
-      outSlope: -1.5320497
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.29737285
-      outWeight: 0.481766
-    - serializedVersion: 3
-      time: 0.52639246
-      value: 0.49903226
-      inSlope: -5.2842216
-      outSlope: -5.2842216
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.27579388
-      outWeight: 0.33333334
+      inWeight: 0
+      outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  JumpTime: 2
-  JumpHeight: 2
+  SecondJumpCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  FirstJumpTime: 1.5
+  FirstJumpHeight: 2
+  SecondJumpTime: 1.5
+  SecondJumpHeight: 2
+  OnGroundRadiusReduction: 0.01
+  _firstJumpCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _secondJumpCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &822436750
 GameObject:
   m_ObjectHideFlags: 0
@@ -662,6 +675,7 @@ MonoBehaviour:
   MoveSpeed: 10
   MoveSpeedRampUp: 1
   ReturnOutwardSpeed: 15
+  GoInwardSpeed: 60
   TargetOrbitRadius: 4
   CollisionSphereRadius: 0.3
   BackupCollisionSphereRadius: 0.3
@@ -669,6 +683,7 @@ MonoBehaviour:
   SphereHitDistanceFactor: 0.9
   SpherecastInterval: 30
   NumSphereHitDirRings: 16
+  NumSphereHitDirSegments: 32
   EnableFreeFly: 0
   FollowTarget: 0
 --- !u!114 &822436756

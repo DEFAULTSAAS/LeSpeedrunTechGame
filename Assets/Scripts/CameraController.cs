@@ -57,6 +57,7 @@ public class CameraController : MonoBehaviour
     public float MoveSpeed = 10.0f;
     public float MoveSpeedRampUp = 1.0f;
     public float ReturnOutwardSpeed = 2.0f;
+    public float GoInwardSpeed = 4.0f;
     public float TargetOrbitRadius = 4.0f;
     public float CollisionSphereRadius = 0.5f;
     public float BackupCollisionSphereRadius = 0.5f;
@@ -64,6 +65,7 @@ public class CameraController : MonoBehaviour
     public float SphereHitDistanceFactor = 2.0f;
     public float SpherecastInterval = 60.0f;
     public int NumSphereHitDirRings = 9;
+    public int NumSphereHitDirSegments = 16;
     
     public bool EnableFreeFly;
     public bool FollowTarget;
@@ -78,8 +80,7 @@ public class CameraController : MonoBehaviour
     private float _cameraSphereCastRadius = 1.0f;
     private float _angularSphereCastRadius = 1.0f;
     private float _inverseSpherecastInterval = 1.0f;
-    private int _numSphereHitDirSegments = 16;
-
+    
     private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
 
     private NativeArray<SpherecastCommand> _spherecastCommands;
@@ -97,8 +98,8 @@ public class CameraController : MonoBehaviour
         _lookInputAction = InputSystem.actions.FindAction("Look");
         
         _currTargetOrbitRadius = TargetOrbitRadius;
-        _numSphereHitDirSegments = NumSphereHitDirRings * 2;
-        _cameraSphereCastHits.Capacity = (_numSphereHitDirSegments * (NumSphereHitDirRings - 1)) + 2;
+        //_numSphereHitDirSegments = NumSphereHitDirRings * 2;
+        _cameraSphereCastHits.Capacity = (NumSphereHitDirSegments * (NumSphereHitDirRings - 1)) + 2;
         
         _prevRadius = _currTargetOrbitRadius;
         _inverseSpherecastInterval /= SpherecastInterval;
@@ -127,9 +128,9 @@ public class CameraController : MonoBehaviour
         for (int i = 0; i < (NumSphereHitDirRings - 1); i++)
         {
             float phi = Mathf.PI * ((i + 1) / (float)NumSphereHitDirRings);
-            for (int j = 0; j < _numSphereHitDirSegments; j++)
+            for (int j = 0; j < NumSphereHitDirSegments; j++)
             {
-                float theta = 2.0f * Mathf.PI * (j / (float)_numSphereHitDirSegments);
+                float theta = 2.0f * Mathf.PI * (j / (float)NumSphereHitDirSegments);
                 Vector3 dir;    
                 
                 dir.x = Mathf.Cos(theta) * Mathf.Sin(phi);
@@ -207,6 +208,11 @@ public class CameraController : MonoBehaviour
             RefreshSpherecastCommands();
             break;
         }
+
+        // foreach (Vector3 dir in _cameraSphereCastDirs)
+        // {
+        //     Debug.DrawLine(Target.position, Target.position + dir * _currTargetOrbitRadius);
+        // }
     }
 
     private float _prevRadius;
@@ -249,21 +255,29 @@ public class CameraController : MonoBehaviour
         float targetRadius = adjustedCameraPos.magnitude;
         adjustedCameraPos = adjustedCameraPos.normalized;
         
-        if (Physics.SphereCast(Target.position, 
-                               CollisionSphereRadius, 
-                               adjustedCameraPos, 
-                               out RaycastHit hit, 
-                               targetRadius, 
-                               LayerMask.NameToLayer("Camera"), 
-                               QueryTriggerInteraction.Ignore))
+        bool isHit = false; 
+        if (isHit = Physics.SphereCast(Target.position, 
+                                       CollisionSphereRadius, 
+                                       adjustedCameraPos, 
+                                       out RaycastHit hit, 
+                                       targetRadius, 
+                                       LayerMask.NameToLayer("Camera"), 
+                                       QueryTriggerInteraction.Ignore))
         {
             targetRadius = hit.distance;
         }
+        
         if (targetRadius > _prevRadius)
         {
             targetRadius = Mathf.Lerp(_prevRadius, 
                                       targetRadius, 
                                       Mathf.SmoothStep(0.0f, 1.0f, ReturnOutwardSpeed * dt));
+        }
+        else if (!isHit && targetRadius < _prevRadius)
+        {
+            targetRadius = Mathf.Lerp(_prevRadius, 
+                                      targetRadius, 
+                                      Mathf.SmoothStep(0.0f, 1.0f, GoInwardSpeed * dt));
         }
 
         transform.position = Target.position + (adjustedCameraPos * targetRadius);
@@ -280,20 +294,6 @@ public class CameraController : MonoBehaviour
         {
             return;
         }
-
-        // _cameraSphereCastHits.Clear();
-        // foreach (Vector3 dir in _cameraSphereCastDirs)
-        // {
-        //     RaycastHit hit;
-        //     bool isHit = Physics.SphereCast(Target.position, _cameraSphereCastRadius, dir, out hit, _currTargetOrbitRadius, LayerMask.NameToLayer("Camera"));
-            
-        //     Debug.DrawLine(Target.position, dir * _currTargetOrbitRadius);
-        //     if (isHit)
-        //     {
-        //         _cameraSphereCastHits.Add(hit.point - Target.position);
-        //         Debug.DrawLine(Target.position, hit.point, Color.blue);   
-        //     }
-        // }
     }
 
     void OnDestroy()

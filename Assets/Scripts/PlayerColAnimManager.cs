@@ -1,11 +1,17 @@
+using System;
 using UnityEngine;
 
 public class PlayerColAnimManager : MonoBehaviour
 {
+    public CapsuleCollider MainPlayerCollider;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        if (!MainPlayerCollider)
+            MainPlayerCollider = GetComponent<CapsuleCollider>();
+        if (!MainPlayerCollider)
+            throw new NullReferenceException("Could not get the main player collider!");
     }
 
     // Update is called once per frame
