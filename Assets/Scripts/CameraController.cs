@@ -80,7 +80,8 @@ public class CameraController : MonoBehaviour
     private float _cameraSphereCastRadius = 1.0f;
     private float _angularSphereCastRadius = 1.0f;
     private float _inverseSpherecastInterval = 1.0f;
-    
+    private int _cameraRaycastMask = 0;
+
     private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
 
     private NativeArray<SpherecastCommand> _spherecastCommands;
@@ -97,10 +98,11 @@ public class CameraController : MonoBehaviour
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _lookInputAction = InputSystem.actions.FindAction("Look");
         
+        _cameraRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Camera"));
         _currTargetOrbitRadius = TargetOrbitRadius;
         //_numSphereHitDirSegments = NumSphereHitDirRings * 2;
         _cameraSphereCastHits.Capacity = (NumSphereHitDirSegments * (NumSphereHitDirRings - 1)) + 2;
-        
+
         _prevRadius = _currTargetOrbitRadius;
         _inverseSpherecastInterval /= SpherecastInterval;
 
@@ -261,7 +263,7 @@ public class CameraController : MonoBehaviour
                                        adjustedCameraPos, 
                                        out RaycastHit hit, 
                                        targetRadius, 
-                                       LayerMask.NameToLayer("Camera"), 
+                                       _cameraRaycastMask, 
                                        QueryTriggerInteraction.Ignore))
         {
             targetRadius = hit.distance;
@@ -325,7 +327,7 @@ public class CameraController : MonoBehaviour
             spherecastCommand.direction = dir;
             spherecastCommand.distance = _currTargetOrbitRadius;   
             spherecastCommand.radius = _cameraSphereCastRadius;
-            spherecastCommand.queryParameters = new QueryParameters(LayerMask.NameToLayer("Camera"), 
+            spherecastCommand.queryParameters = new QueryParameters(_cameraRaycastMask, 
                                                                    false, 
                                                                    QueryTriggerInteraction.Ignore);
 

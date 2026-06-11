@@ -17,6 +17,8 @@ public class PlayerController : MonoBehaviour
     public float SecondJumpHeight = 2.0f;
 
     public float OnGroundRadiusReduction = 0.01f;
+    public float GroundSnapDistance = 0.05f;
+    public float GroundSnapSpeed = 10.0f;
 
     private InputAction _jumpInputAction;
     private Rigidbody _rigidbody;
@@ -28,10 +30,15 @@ public class PlayerController : MonoBehaviour
     private Vector3 momentumDir;
     
     private float _momentumMag;
+    private float _currJumpTime;
     private float _remainingJumpTime;
     private float _onGroundSphereCastDist;
+
+    private int _playerRaycastMask = 0;
+
     private bool _isFirstJumpUpdate = false;
     private bool _isOnGround = false;
+    private bool _isInGroundSnapRange = false;
     
     [SerializeField] private AnimationCurve _firstJumpCurve;
     [SerializeField] private AnimationCurve _secondJumpCurve;
@@ -47,6 +54,8 @@ public class PlayerController : MonoBehaviour
         {
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
+        
+        _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
 
         _rigidbody = GetComponent<Rigidbody>();
@@ -81,7 +90,7 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (_isOnGround && _remainingJumpTime <= 0.0f && _jumpInputAction.WasPerformedThisFrame())
+        if (_isOnGround && _remainingJumpTime == 0.0f && _jumpInputAction.WasPerformedThisFrame())
         {
             _remainingJumpTime = FirstJumpTime;
             _isFirstJumpUpdate = true;
@@ -91,11 +100,38 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
-        float _timeSinceFirstJump = FirstJumpTime - _remainingJumpTime;
+        if (_isOnGround && _currJumpTime > 0.1f)
+        {
+            _remainingJumpTime = 0.0f;
+            _currJumpTime = 0.0f;
+        }
+        _isOnGround = Physics.SphereCast(transform.position, 
+                                         PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
+                                         -Vector3.up, 
+                                         out RaycastHit hit, 
+                                         _onGroundSphereCastDist, 
+                                         _playerRaycastMask, 
+                                         QueryTriggerInteraction.Ignore);
+        
+        RaycastHit groundSnapRange;
+        _isInGroundSnapRange = Physics.SphereCast(transform.position, 
+                                                  PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
+                                                  -Vector3.up, 
+                                                  out groundSnapRange, 
+                                                  _onGroundSphereCastDist + GroundSnapDistance,
+                                                  _playerRaycastMask, 
+                                                  QueryTriggerInteraction.Ignore);
+        if (!_isOnGround && _isInGroundSnapRange && _rigidbody.linearVelocity.y < 0.0f)
+        {
+            Vector3 currLinVel = _rigidbody.linearVelocity;
+            currLinVel.y -= GroundSnapSpeed * dt;
+
+            _rigidbody.linearVelocity = currLinVel;
+        }
 
         if (_remainingJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
-            float t = _timeSinceFirstJump / FirstJumpTime;
+            float t = _currJumpTime / FirstJumpTime;
             float acceleration = CalcCurveAcceleration(_firstJumpCurve, 1.0f, t, dt / FirstJumpTime);
             
             float force = acceleration * FirstJumpHeight;
@@ -104,6 +140,7 @@ public class PlayerController : MonoBehaviour
 
             _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
             _remainingJumpTime -= dt;   
+            _currJumpTime += dt;
         }
         else if (_isFirstJumpUpdate)
         {
@@ -115,18 +152,6 @@ public class PlayerController : MonoBehaviour
             speed -= Physics.gravity.y * dt;
             _rigidbody.AddForce(Vector3.up * speed, ForceMode.VelocityChange);
         }
-
-        if (_isOnGround && _timeSinceFirstJump > 0.01f)
-        {
-            _remainingJumpTime = 0.0f;
-        }
-        _isOnGround = Physics.SphereCast(transform.position, 
-                                         PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
-                                         -Vector3.up, 
-                                         out RaycastHit hit, 
-                                         _onGroundSphereCastDist, 
-                                         ~(1 << LayerMask.NameToLayer("Player")), 
-                                         QueryTriggerInteraction.Ignore);
     }
 
     public static float CalcCurveAcceleration(AnimationCurve inCurve, float inMaxX, float inT, float inH)

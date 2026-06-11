@@ -500,9 +500,12 @@ MonoBehaviour:
     m_RotationOrder: 4
   FirstJumpTime: 1.5
   FirstJumpHeight: 2
+  SecondJumpDelay: 0.1
   SecondJumpTime: 1.5
   SecondJumpHeight: 2
   OnGroundRadiusReduction: 0.01
+  GroundSnapDistance: 0.5
+  GroundSnapSpeed: 10
   _firstJumpCurve:
     serializedVersion: 2
     m_Curve: []

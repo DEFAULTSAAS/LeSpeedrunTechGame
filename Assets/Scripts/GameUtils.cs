@@ -2,8 +2,15 @@ using UnityEngine;
 
 public class GameUtils
 {
-    static int CollisionLayerToRaycastMask()
+    public static int CollisionLayerToRaycastMask(int inLayer)
     {
-        return 0;
+        int result = 0;
+        for (int i = 0; i < 32; i++)
+        {
+            if (!Physics.GetIgnoreLayerCollision(inLayer, i))
+                result |= 1 << i;  
+        }
+        
+        return result;
     }
 }
