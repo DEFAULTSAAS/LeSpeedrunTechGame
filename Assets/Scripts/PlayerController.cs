@@ -12,10 +12,11 @@ public class PlayerController : MonoBehaviour
     public float FirstJumpTime = 1.5f;
     public float FirstJumpHeight = 2.0f; 
     
+    public float SecondJumpDelay = 0.1f; // Amount of time that must pass after the first jump.
     public float SecondJumpTime = 1.5f;
     public float SecondJumpHeight = 2.0f;
 
-    public float OnGroundRadiusReduction = 0.01f; 
+    public float OnGroundRadiusReduction = 0.01f;
 
     private InputAction _jumpInputAction;
     private Rigidbody _rigidbody;
