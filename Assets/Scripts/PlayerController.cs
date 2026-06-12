@@ -2,32 +2,52 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[Serializable]
+public class JumpParams
+{
+    public bool IncludeGravityOnDecent;
+    public float JumpHeight;
+    public float JumpDuration;
+    public AnimationCurve JumpCurve;
+
+    public void AdjustJumpCurve()
+    {
+        Keyframe[] adjustedKeys = JumpCurve.keys;
+        float jumpCurveMax = JumpCurve.keys[JumpCurve.keys.Length - 1].time;
+        float invJumpCurveMaxX = 1.0f / jumpCurveMax;
+        for (int i = 0; i < adjustedKeys.Length; i++)
+        {
+            adjustedKeys[i].inTangent *= jumpCurveMax;
+            adjustedKeys[i].outTangent *= jumpCurveMax;
+            adjustedKeys[i].time *= invJumpCurveMaxX;
+        }
+        JumpCurve = new (adjustedKeys);
+    }
+};
+
 public class PlayerController : MonoBehaviour
 {
     public PlayerColAnimManager PCAM;
     public CameraController PlayerCamera;
-    public AnimationCurve FirstJumpCurve;
-    public AnimationCurve SecondJumpCurve;
+    public JumpParams FirstJumpParams;
+    public JumpParams SecondJumpParams;
     
-    public float FirstJumpTime = 1.5f;
-    public float FirstJumpHeight = 2.0f; 
-    
-    public float SecondJumpDelay = 0.1f; // Amount of time that must pass after the first jump.
-    public float SecondJumpTime = 1.5f;
-    public float SecondJumpHeight = 2.0f;
+    public float MinSecondJumpDelay = 0.1f; // Amount of time that must pass after the first jump.
+    public float MaxSecondJumpDelay = 0.6f;
 
     public float OnGroundRadiusReduction = 0.01f;
     public float GroundSnapDistance = 0.05f;
     public float GroundSnapSpeed = 10.0f;
 
+    private JumpParams _currJumpParams;
     private InputAction _jumpInputAction;
     private Rigidbody _rigidbody;
 
-    private Vector3 playerMoveDir;
-    private Vector3 playerLookDir;
-    private Vector3 playerInputDir;
-    private Vector3 desiredMoveDir;
-    private Vector3 momentumDir;
+    private Vector3 _playerMoveDir;
+    private Vector3 _playerLookDir;
+    private Vector3 _playerInputDir;
+    private Vector3 _desiredMoveDir;
+    private Vector3 _momentumDir;
     
     private float _momentumMag;
     private float _currJumpTime;
@@ -39,9 +59,6 @@ public class PlayerController : MonoBehaviour
     private bool _isFirstJumpUpdate = false;
     private bool _isOnGround = false;
     private bool _isInGroundSnapRange = false;
-    
-    [SerializeField] private AnimationCurve _firstJumpCurve;
-    [SerializeField] private AnimationCurve _secondJumpCurve;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -65,35 +82,36 @@ public class PlayerController : MonoBehaviour
         }
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
 
-        Keyframe[] adjustedKeys = FirstJumpCurve.keys;
-        float jumpCurveMax = FirstJumpCurve.keys[FirstJumpCurve.keys.Length - 1].time;
-        float invJumpCurveMaxX = 1.0f / jumpCurveMax;
-        for (int i = 0; i < adjustedKeys.Length; i++)
-        {
-            adjustedKeys[i].inTangent *= jumpCurveMax;
-            adjustedKeys[i].outTangent *= jumpCurveMax;
-            adjustedKeys[i].time *= invJumpCurveMaxX;
-        }
-        _firstJumpCurve = new (adjustedKeys);
-
-        adjustedKeys = SecondJumpCurve.keys;
-        jumpCurveMax = SecondJumpCurve.keys[SecondJumpCurve.length - 1].time;
-        invJumpCurveMaxX = 1.0f / jumpCurveMax;
-        for (int i = 0; i < adjustedKeys.Length; i++)
-        {
-            adjustedKeys[i].inTangent *= jumpCurveMax;
-            adjustedKeys[i].outTangent *= jumpCurveMax;
-            adjustedKeys[i].time *= invJumpCurveMaxX;
-        }
+        FirstJumpParams.AdjustJumpCurve();
+        SecondJumpParams.AdjustJumpCurve();
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (_isOnGround && _remainingJumpTime == 0.0f && _jumpInputAction.WasPerformedThisFrame())
+        if (_jumpInputAction.WasPerformedThisFrame())
         {
-            _remainingJumpTime = FirstJumpTime;
-            _isFirstJumpUpdate = true;
+            bool jumpTriggered = false;
+            if (_isOnGround && _remainingJumpTime == 0.0f)
+            {
+                _currJumpParams = FirstJumpParams;
+                jumpTriggered = true;
+            }
+            else if (_currJumpParams != SecondJumpParams && 
+                     _remainingJumpTime > 0.0f && 
+                     _currJumpTime > MinSecondJumpDelay && 
+                     _currJumpTime < MaxSecondJumpDelay)
+            {
+                _currJumpParams = SecondJumpParams;
+                jumpTriggered = true;
+            }
+
+            if (jumpTriggered)
+            {
+                _remainingJumpTime = _currJumpParams.JumpDuration;
+                _isFirstJumpUpdate = true;
+                _currJumpTime = 0.0f;
+            }
         }
     }
 
@@ -131,12 +149,18 @@ public class PlayerController : MonoBehaviour
 
         if (_remainingJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
-            float t = _currJumpTime / FirstJumpTime;
-            float acceleration = CalcCurveAcceleration(_firstJumpCurve, 1.0f, t, dt / FirstJumpTime);
+            float t = _currJumpTime / _currJumpParams.JumpDuration;
+            float adjustedDT = dt / _currJumpParams.JumpDuration;
             
-            float force = acceleration * FirstJumpHeight;
-            force /= FirstJumpTime * FirstJumpTime;
-            force -= Physics.gravity.y;
+            float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurve, 1.0f, t, adjustedDT);
+            float heightDelta =  _currJumpParams.JumpCurve.Evaluate(Mathf.Clamp01(t + adjustedDT)) - 
+                                 _currJumpParams.JumpCurve.Evaluate(t);
+
+            float force = acceleration * _currJumpParams.JumpHeight;
+            force /= _currJumpParams.JumpDuration * _currJumpParams.JumpDuration;
+            force -= (_currJumpParams.IncludeGravityOnDecent && heightDelta < 0.0f) ? 0.0f : Physics.gravity.y;
+            // We need to take gravity into account, to ensure the jump height curve is followed properly.
+            // This is due to the jump height curve not taking gravity into account itself.
 
             _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
             _remainingJumpTime -= dt;   
@@ -146,9 +170,13 @@ public class PlayerController : MonoBehaviour
         {
             _isOnGround = false;
             _isFirstJumpUpdate = false;
-            float firstCurveHeight = _firstJumpCurve.Evaluate(dt / FirstJumpTime) * FirstJumpHeight;
+            float firstCurveHeight = _currJumpParams.JumpCurve.Evaluate(dt / _currJumpParams.JumpDuration) * 
+                                     _currJumpParams.JumpHeight;
             float speed = firstCurveHeight / dt;
             
+            speed -= _rigidbody.linearVelocity.y;
+            speed = (speed < 0.0f) ? 0.0f : speed;
+
             speed -= Physics.gravity.y * dt;
             _rigidbody.AddForce(Vector3.up * speed, ForceMode.VelocityChange);
         }

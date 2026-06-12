@@ -61,8 +61,9 @@ public class CameraController : MonoBehaviour
     public float TargetOrbitRadius = 4.0f;
     public float CollisionSphereRadius = 0.5f;
     public float BackupCollisionSphereRadius = 0.5f;
+    public float OverrideCollisionSphereRadius = 0.6f;
     public float SphereRadiusIncreaseFactor = 1.25f; // How much to increase sphere cast radius by.
-    public float SphereHitDistanceFactor = 2.0f;
+    public float SphereHitDistanceFactor = 2.0f; // 
     public float SpherecastInterval = 60.0f;
     public int NumSphereHitDirRings = 9;
     public int NumSphereHitDirSegments = 16;
@@ -167,6 +168,8 @@ public class CameraController : MonoBehaviour
         _angularSphereCastRadius = maxNearestAngle * 0.6f;
         _cameraSphereCastRadius = _currTargetOrbitRadius * Mathf.Sin(_angularSphereCastRadius);
         _cameraSphereCastRadius *= SphereRadiusIncreaseFactor;
+        _cameraSphereCastRadius = (OverrideCollisionSphereRadius > _cameraSphereCastRadius) ? 
+                                   OverrideCollisionSphereRadius : _cameraSphereCastRadius;
 
         Debug.Log(_cameraSphereCastRadius);
     }

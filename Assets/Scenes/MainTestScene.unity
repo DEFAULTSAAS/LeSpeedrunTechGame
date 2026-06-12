@@ -450,74 +450,76 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   PCAM: {fileID: 355849151}
   PlayerCamera: {fileID: 822436755}
-  FirstJumpCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 2
-      outSlope: 2
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  SecondJumpCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 2
-      outSlope: 2
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  FirstJumpTime: 1.5
-  FirstJumpHeight: 2
-  SecondJumpDelay: 0.1
-  SecondJumpTime: 1.5
-  SecondJumpHeight: 2
+  FirstJumpParams:
+    IncludeGravityOnDecent: 1
+    JumpHeight: 2
+    JumpDuration: 2
+    JumpCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2
+        outSlope: 2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.38369685
+        value: 0.98959506
+        inSlope: 0.5413466
+        outSlope: 0.5413466
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.09027912
+      - serializedVersion: 3
+        time: 0.79794204
+        value: 0.2504146
+        inSlope: -3.7067428
+        outSlope: -3.7067428
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.049234856
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  SecondJumpParams:
+    IncludeGravityOnDecent: 0
+    JumpHeight: 2
+    JumpDuration: 1
+    JumpCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2
+        outSlope: 2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  MinSecondJumpDelay: 0.1
+  MaxSecondJumpDelay: 0.75
   OnGroundRadiusReduction: 0.01
-  GroundSnapDistance: 0.5
+  GroundSnapDistance: 0.6
   GroundSnapSpeed: 10
-  _firstJumpCurve:
-    serializedVersion: 2
-    m_Curve: []
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  _secondJumpCurve:
-    serializedVersion: 2
-    m_Curve: []
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
 --- !u!1 &822436750
 GameObject:
   m_ObjectHideFlags: 0
@@ -682,6 +684,7 @@ MonoBehaviour:
   TargetOrbitRadius: 4
   CollisionSphereRadius: 0.3
   BackupCollisionSphereRadius: 0.3
+  OverrideCollisionSphereRadius: 0.6
   SphereRadiusIncreaseFactor: 1.25
   SphereHitDistanceFactor: 0.9
   SpherecastInterval: 30
