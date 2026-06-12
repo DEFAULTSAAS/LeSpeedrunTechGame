@@ -29,6 +29,12 @@ public class PlayerController : MonoBehaviour
 {
     public PlayerColAnimManager PCAM;
     public CameraController PlayerCamera;
+    
+    public float WalkMoveSpeed = 3.0f;
+    public float DirChangeRate = 2.0f;
+    // How much the current horizontal velocity effects how quickly the player direction is changed.
+    public float DirChangeRateVelFactor = 1.0f;
+
     public JumpParams FirstJumpParams;
     public JumpParams SecondJumpParams;
     
@@ -39,12 +45,16 @@ public class PlayerController : MonoBehaviour
     public float GroundSnapDistance = 0.05f;
     public float GroundSnapSpeed = 10.0f;
 
-    private JumpParams _currJumpParams;
+    private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
+
+    private JumpParams _currJumpParams;
     private Rigidbody _rigidbody;
+    private Vector2 _moveInputAcc;
 
     private Vector3 _playerMoveDir;
     private Vector3 _playerLookDir;
+    private Vector3 _playerLookDirXZ;
     private Vector3 _playerInputDir;
     private Vector3 _desiredMoveDir;
     private Vector3 _momentumDir;
@@ -80,6 +90,8 @@ public class PlayerController : MonoBehaviour
         {
             throw new NullReferenceException("PlayerController could not get a rigidbody!");
         }
+        
+        _moveInputAction = InputSystem.actions.FindAction("Move");
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
 
         FirstJumpParams.AdjustJumpCurve();
@@ -89,6 +101,10 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        float dt = Time.deltaTime;
+        Vector2 moveInput = _moveInputAction.ReadValue<Vector2>();
+        _moveInputAcc += moveInput;
+
         if (_jumpInputAction.WasPerformedThisFrame())
         {
             bool jumpTriggered = false;
@@ -118,6 +134,9 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
+        Quaternion cameraYRot = CameraController.GetRotationAroundAxis(PlayerCamera.GetCameraOrientation(), Vector3.up); 
+        
+        _moveInputAcc.Normalize();
         if (_isOnGround && _currJumpTime > 0.1f)
         {
             _remainingJumpTime = 0.0f;
@@ -147,6 +166,28 @@ public class PlayerController : MonoBehaviour
             _rigidbody.linearVelocity = currLinVel;
         }
 
+        _playerLookDir = PlayerCamera.GetCameraOrientation() * Vector3.forward;
+        _playerLookDirXZ = cameraYRot * Vector3.forward;
+        _playerInputDir = (_moveInputAcc.y * _playerLookDirXZ) + (_moveInputAcc.x * (cameraYRot * Vector3.right));
+        _playerInputDir.Normalize();
+        _desiredMoveDir = _playerInputDir; 
+        // By default the desired move dir is just the input dir, but this can change based on different actions.
+
+        Vector3 dirDiff = _desiredMoveDir - _playerMoveDir;
+        float currMoveSpeed = WalkMoveSpeed;
+        float dirDiffMag = dirDiff.magnitude; 
+        float dirChangeMag = DirChangeRate * dt;
+        
+        dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
+        _playerMoveDir += dirDiff.normalized * dirChangeMag;
+        _playerMoveDir.Normalize();
+
+        Vector3 targetVelXZ = _playerMoveDir * currMoveSpeed;
+        Vector3 currVel = _rigidbody.linearVelocity; currVel.y = 0.0f;
+        Debug.Log($"{dirDiff} {_playerMoveDir}");
+        _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
+
+        _moveInputAcc = Vector2.zero;
         if (_remainingJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
             float t = _currJumpTime / _currJumpParams.JumpDuration;
