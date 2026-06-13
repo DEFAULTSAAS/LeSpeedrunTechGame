@@ -262,7 +262,7 @@ public class CameraController : MonoBehaviour
         
         bool isHit = false; 
         if (isHit = Physics.SphereCast(Target.position, 
-                                       CollisionSphereRadius, 
+                                       CollisionSphereRadius,
                                        adjustedCameraPos, 
                                        out RaycastHit hit, 
                                        targetRadius, 
