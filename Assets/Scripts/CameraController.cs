@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
+using System;
 
 public struct HighOrderBezier
 {
@@ -48,6 +49,7 @@ public struct HighOrderBezier
 public class CameraController : MonoBehaviour
 {
     public Transform Target;
+    public Transform[] VisCheckPoints;
     
     public Vector2 LookSpeedFPS = new (10.0f, 10.0f);
     public Vector2 LookSpeedTPS = new (10.0f, 10.0f);
@@ -64,7 +66,10 @@ public class CameraController : MonoBehaviour
     public float OverrideCollisionSphereRadius = 0.6f;
     public float SphereRadiusIncreaseFactor = 1.25f; // How much to increase sphere cast radius by.
     public float SphereHitDistanceFactor = 2.0f; // 
-    public float SpherecastInterval = 60.0f;
+    public float SpherecastsPerSec = 60.0f;
+    public float GapCamEnableRadiusFactor = 0.22f;
+    public float GapCamResetRadiusFactor = 0.9f;
+    public float GapCamResetTime = 1.0f;
     public int NumSphereHitDirRings = 9;
     public int NumSphereHitDirSegments = 16;
     
@@ -80,10 +85,13 @@ public class CameraController : MonoBehaviour
     private float _currTargetOrbitRadius = 1.0f;
     private float _cameraSphereCastRadius = 1.0f;
     private float _angularSphereCastRadius = 1.0f;
-    private float _inverseSpherecastInterval = 1.0f;
+    private float _spherecastsInterval = 1.0f;
+    private float _gapCamMinResetRadius = 1.0f;
     private int _cameraRaycastMask = 0;
 
+    private Vector3[] _visCheckOrigins = new Vector3[4];
     private Quaternion _cameraOrientation = Quaternion.identity; // Orientation of camera around the player.
+    private Camera _camera;
 
     private NativeArray<SpherecastCommand> _spherecastCommands;
     private NativeArray<RaycastHit> _spherecastResults;
@@ -96,6 +104,12 @@ public class CameraController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        _camera = GetComponent<Camera>();
+        if (!_camera)
+        {
+            throw new NullReferenceException("Camera controller script must be on a camera!");
+        }
+
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _lookInputAction = InputSystem.actions.FindAction("Look");
         
@@ -105,7 +119,8 @@ public class CameraController : MonoBehaviour
         _cameraSphereCastHits.Capacity = (NumSphereHitDirSegments * (NumSphereHitDirRings - 1)) + 2;
 
         _prevRadius = _currTargetOrbitRadius;
-        _inverseSpherecastInterval /= SpherecastInterval;
+        _spherecastsInterval /= SpherecastsPerSec;
+        _gapCamMinResetRadius = _currTargetOrbitRadius * GapCamResetRadiusFactor;
 
         _spherecastCommands = new (_cameraSphereCastHits.Capacity, Allocator.Persistent);
         _spherecastResults = new (_cameraSphereCastHits.Capacity, Allocator.Persistent);
@@ -168,17 +183,16 @@ public class CameraController : MonoBehaviour
         _angularSphereCastRadius = maxNearestAngle * 0.6f;
         _cameraSphereCastRadius = _currTargetOrbitRadius * Mathf.Sin(_angularSphereCastRadius);
         _cameraSphereCastRadius *= SphereRadiusIncreaseFactor;
+        Debug.Log(_cameraSphereCastRadius);
         _cameraSphereCastRadius = (OverrideCollisionSphereRadius > _cameraSphereCastRadius) ? 
                                    OverrideCollisionSphereRadius : _cameraSphereCastRadius;
-
-        Debug.Log(_cameraSphereCastRadius);
     }
 
     private float _spherecastCompletionTime = 0.0f;
     private bool _firstJobStarted = false;
     void Update()
     {
-        for (;_spherecastsJob.IsCompleted && (Time.time - _spherecastCompletionTime) > _inverseSpherecastInterval;)
+        for (;_spherecastsJob.IsCompleted && (Time.time - _spherecastCompletionTime) > _spherecastsInterval;)
         {
             _spherecastsJob.Complete();
             if (!_firstJobStarted)
@@ -197,15 +211,14 @@ public class CameraController : MonoBehaviour
 
                 // Backup sphere casts should always be smaller and more accurate,
                 // so try and use them first.
-                if (_backupSpherecastResults[i].collider != null)
-                    hit = _backupSpherecastResults[i];
-                else if (_spherecastResults[i].collider != null)
+                if (_spherecastResults[i].collider != null)
                     hit = _spherecastResults[i];
-
+                else if (_backupSpherecastResults[i].collider != null)
+                    hit = _backupSpherecastResults[i];
                 if (hit.collider == null)
                     continue;
 
-                //Debug.DrawLine(Target.position, Target.position + (dir * hit.distance), Color.blue);
+                Debug.DrawLine(Target.position, Target.position + (dir * hit.distance), Color.blue, 0.2f);
                 _cameraSphereCastHits.Add(dir * hit.distance);
             }
 
@@ -220,11 +233,12 @@ public class CameraController : MonoBehaviour
         // }
     }
 
+    private bool _gapCamWasEnabled = false;
+    private float _gapCamResetTimeAcc = 0.0f;
     private float _prevRadius;
     void LateUpdate()
     {
         float dt = Time.deltaTime;
-
         if (EnableFreeFly)
         {
             UpdateFreeCamera(dt);
@@ -262,16 +276,83 @@ public class CameraController : MonoBehaviour
         
         bool isHit = false; 
         if (isHit = Physics.SphereCast(Target.position, 
-                                       CollisionSphereRadius,
-                                       adjustedCameraPos, 
-                                       out RaycastHit hit, 
-                                       targetRadius, 
-                                       _cameraRaycastMask, 
-                                       QueryTriggerInteraction.Ignore))
+                                   CollisionSphereRadius,
+                                   adjustedCameraPos, 
+                                   out RaycastHit hit0, 
+                                   targetRadius, 
+                                   _cameraRaycastMask, 
+                                   QueryTriggerInteraction.Ignore))
         {
-            targetRadius = hit.distance;
+            targetRadius = hit0.distance;
+        }   
+        
+        if (targetRadius >= _gapCamMinResetRadius && _gapCamResetTimeAcc < GapCamResetTime)
+            _gapCamResetTimeAcc += dt;
+        else if (targetRadius >= _gapCamMinResetRadius)
+            _gapCamWasEnabled = false;
+
+        bool enableGapCam = false;
+        if (targetRadius < (_currTargetOrbitRadius * GapCamEnableRadiusFactor))
+        {
+            enableGapCam = true;
+            _gapCamResetTimeAcc = 0.0f;
+        }
+        else if (_gapCamWasEnabled)
+            enableGapCam = true;
+        _gapCamWasEnabled = (enableGapCam || _gapCamWasEnabled) ? true : false;
+
+        // Top left - bottom left - top right - bottom right
+        _visCheckOrigins[0] = _camera.ViewportToWorldPoint(new Vector3(0.0f, 1.0f, _camera.nearClipPlane));
+        _visCheckOrigins[1] = _camera.ViewportToWorldPoint(new Vector3(0.0f, 0.0f, _camera.nearClipPlane));
+        _visCheckOrigins[2] = _camera.ViewportToWorldPoint(new Vector3(1.0f, 1.0f, _camera.nearClipPlane));
+        _visCheckOrigins[3] = _camera.ViewportToWorldPoint(new Vector3(1.0f, 0.0f, _camera.nearClipPlane));
+
+        int numVisChecksPassed = 0;
+        foreach (Transform point in VisCheckPoints)
+        {
+            foreach (Vector3 origin in _visCheckOrigins)
+            {
+                Vector3 dir = point.position - origin;
+                if (!Physics.Raycast(origin, 
+                                    dir.normalized, 
+                                    dir.magnitude - 0.01f,
+                                    _cameraRaycastMask,
+                                    QueryTriggerInteraction.Ignore))
+                {
+                    Debug.DrawLine(origin, point.position, Color.red);
+                    numVisChecksPassed++;
+                }   
+            }
+        }
+        if (!enableGapCam ||
+            Physics.Raycast(transform.position, 
+                               -transform.forward,
+                               _currTargetOrbitRadius - 
+                               Vector3.Distance(transform.position, Target.position),
+                               _cameraRaycastMask,
+                               QueryTriggerInteraction.Ignore) ||
+            Physics.OverlapSphere(transform.position,
+                                  CollisionSphereRadius + 0.01f,
+                                  _cameraRaycastMask,
+                                  QueryTriggerInteraction.Ignore).Length > 0) 
+        {
+            _gapCamWasEnabled = false;
+            numVisChecksPassed = 0;
         }
         
+        if (numVisChecksPassed > 0)
+            targetRadius = _currTargetOrbitRadius;
+        else if (isHit = Physics.SphereCast(Target.position, 
+                                   CollisionSphereRadius,
+                                   adjustedCameraPos, 
+                                   out RaycastHit hit1, 
+                                   targetRadius, 
+                                   _cameraRaycastMask, 
+                                   QueryTriggerInteraction.Ignore))
+        {
+            targetRadius = hit1.distance;
+        }
+
         if (targetRadius > _prevRadius)
         {
             targetRadius = Mathf.Lerp(_prevRadius, 

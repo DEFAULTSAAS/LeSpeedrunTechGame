@@ -84,6 +84,7 @@ public class PlayerController : MonoBehaviour
         
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
+        _onGroundSphereCastDist += 0.01f;
 
         _rigidbody = GetComponent<Rigidbody>();
         if (!_rigidbody)
@@ -96,6 +97,7 @@ public class PlayerController : MonoBehaviour
 
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
+        Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
     }
 
     // Update is called once per frame
@@ -180,12 +182,17 @@ public class PlayerController : MonoBehaviour
         
         dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
         _playerMoveDir += dirDiff.normalized * dirChangeMag;
-        _playerMoveDir.Normalize();
 
         Vector3 targetVelXZ = _playerMoveDir * currMoveSpeed;
         Vector3 currVel = _rigidbody.linearVelocity; currVel.y = 0.0f;
-        Debug.Log($"{dirDiff} {_playerMoveDir}");
-        _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
+        if (_isOnGround) 
+            _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
+        else if (_isFirstJumpUpdate)
+        {
+            if (targetVelXZ == Vector3.zero)
+                targetVelXZ = currVel.normalized * currMoveSpeed;
+            _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
+        }
 
         _moveInputAcc = Vector2.zero;
         if (_remainingJumpTime > 0.0f && !_isFirstJumpUpdate)
@@ -194,8 +201,7 @@ public class PlayerController : MonoBehaviour
             float adjustedDT = dt / _currJumpParams.JumpDuration;
             
             float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurve, 1.0f, t, adjustedDT);
-            float heightDelta =  _currJumpParams.JumpCurve.Evaluate(Mathf.Clamp01(t + adjustedDT)) - 
-                                 _currJumpParams.JumpCurve.Evaluate(t);
+            float heightDelta = CalcCurveVelocity(_currJumpParams.JumpCurve, t, adjustedDT);
 
             float force = acceleration * _currJumpParams.JumpHeight;
             force /= _currJumpParams.JumpDuration * _currJumpParams.JumpDuration;
@@ -203,7 +209,10 @@ public class PlayerController : MonoBehaviour
             // We need to take gravity into account, to ensure the jump height curve is followed properly.
             // This is due to the jump height curve not taking gravity into account itself.
 
-            _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
+            currVel = new Vector3(0.0f, _rigidbody.linearVelocity.y, 0.0f);
+            currVel.y += force;
+
+            _rigidbody.AddForce(Vector3.up * force, ForceMode.VelocityChange);
             _remainingJumpTime -= dt;   
             _currJumpTime += dt;
         }
@@ -223,23 +232,48 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)
+    {
+        float fOfT = inCurve.Evaluate(inT);
+        float fOfTPlusH = inCurve.Evaluate(inT + inH);
+        float fOfTSubH = inCurve.Evaluate(inT - inH);
+
+        if ((inT - inH) < 0.0f)
+            return (fOfTPlusH - fOfT) / inH;
+        else if ((inT + inH) > 1.0f)
+            return (fOfT - fOfTSubH) / inH;
+
+        return (fOfTPlusH - fOfTSubH) / (2.0f * inH);
+    }
+
     public static float CalcCurveAcceleration(AnimationCurve inCurve, float inMaxX, float inT, float inH)
     {
-        float tPlusH = inT + inH;
-        float tPlus2H = inT + (2.0f * inH);
-
-        // Have to do extra faff if tPlus2H is > 1.0f,
-        // so do below as a backup.
-        if (tPlus2H > inMaxX)
-        {
-            return CalcCurveAcceleration(inCurve, inMaxX, inMaxX - (2.0f * inH), inH);
-        }
-
-        float fOfTPlus2H = inCurve.Evaluate(tPlus2H);
-        float fOfTPlusH = inCurve.Evaluate(tPlusH);
-        float fOfT = inCurve.Evaluate(inT);
+        float vOfT = CalcCurveVelocity(inCurve, inT, inH);
+        float vOfTPlusH = CalcCurveVelocity(inCurve, inT + inH, inH);
+        float vOfTSubH = CalcCurveVelocity(inCurve, inT - inH, inH);
         
-        float result = (fOfTPlus2H - (2.0f * fOfTPlusH) + fOfT) / (inH * inH);
-        return result;
+        if ((inT - inH) < 0.0f)
+            return (vOfTPlusH - vOfT) / inH;
+        else if ((inT + inH) > 1.0f)
+            return (vOfT - vOfTSubH) / inH;
+
+        return (vOfTPlusH - vOfTSubH) / (2.0f * inH);
+        
+        // float tPlusH = inT + inH;
+        // float tPlus2H = inT + (2.0f * inH);
+
+        // // Have to do extra faff if tPlus2H is > 1.0f,
+        // // so do below as a backup.
+        // if (tPlus2H > inMaxX)
+        // {
+        //     return CalcCurveAcceleration(inCurve, inMaxX, inMaxX - (2.0f * inH), inH);
+        // }
+
+        // float fOfTPlus2H = inCurve.Evaluate(tPlus2H);
+        // float fOfTPlusH = inCurve.Evaluate(tPlusH);
+        // float fOfT = inCurve.Evaluate(inT);
+        
+        // float result = (fOfTPlus2H - (2.0f * fOfTPlusH) + fOfT) / (inH * inH);
+        // return result;
     }
 }
