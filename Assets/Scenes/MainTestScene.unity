@@ -711,7 +711,7 @@ Rigidbody:
   serializedVersion: 5
   m_Mass: 1
   m_LinearDamping: 0
-  m_AngularDamping: 0.05
+  m_AngularDamping: 0
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -725,7 +725,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 1
 --- !u!114 &559890494
@@ -1088,14 +1088,15 @@ MonoBehaviour:
   ReturnOutwardSpeed: 15
   GoInwardSpeed: 60
   TargetOrbitRadius: 4
-  GapCamEnableRadiusFactor: 0.22
-  GapCamResetRadiusFactor: 0.9
   CollisionSphereRadius: 0.3
   BackupCollisionSphereRadius: 0.3
   OverrideCollisionSphereRadius: 0.6
   SphereRadiusIncreaseFactor: 1.25
   SphereHitDistanceFactor: 0.9
   SpherecastsPerSec: 30
+  GapCamEnableRadiusFactor: 0.22
+  GapCamResetRadiusFactor: 0.9
+  GapCamResetTime: 1
   NumSphereHitDirRings: 16
   NumSphereHitDirSegments: 32
   EnableFreeFly: 0

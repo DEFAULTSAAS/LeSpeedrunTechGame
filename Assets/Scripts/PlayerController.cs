@@ -137,7 +137,7 @@ public class PlayerController : MonoBehaviour
     {
         float dt = Time.fixedDeltaTime;
         Quaternion cameraYRot = CameraController.GetRotationAroundAxis(PlayerCamera.GetCameraOrientation(), Vector3.up); 
-        
+
         _moveInputAcc.Normalize();
         if (_isOnGround && _currJumpTime > 0.1f)
         {
@@ -212,7 +212,7 @@ public class PlayerController : MonoBehaviour
             currVel = new Vector3(0.0f, _rigidbody.linearVelocity.y, 0.0f);
             currVel.y += force;
 
-            _rigidbody.AddForce(Vector3.up * force, ForceMode.VelocityChange);
+            _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
             _remainingJumpTime -= dt;   
             _currJumpTime += dt;
         }

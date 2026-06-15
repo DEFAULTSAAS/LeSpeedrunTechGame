@@ -68,6 +68,7 @@ public class CameraController : MonoBehaviour
     public float SphereHitDistanceFactor = 2.0f; // 
     public float SpherecastsPerSec = 60.0f;
     public float GapCamEnableRadiusFactor = 0.22f;
+    public float GapCamDisableRadiusFactor = 0.3f; // Must be larger than GapCamEnableRadiusFactor.
     public float GapCamResetRadiusFactor = 0.9f;
     public float GapCamResetTime = 1.0f;
     public int NumSphereHitDirRings = 9;
@@ -86,6 +87,8 @@ public class CameraController : MonoBehaviour
     private float _cameraSphereCastRadius = 1.0f;
     private float _angularSphereCastRadius = 1.0f;
     private float _spherecastsInterval = 1.0f;
+    private float _gapCamEnableRadius = 1.0f;
+    private float _gapCamDisableRadius = 1.0f;
     private float _gapCamMinResetRadius = 1.0f;
     private int _cameraRaycastMask = 0;
 
@@ -120,7 +123,12 @@ public class CameraController : MonoBehaviour
 
         _prevRadius = _currTargetOrbitRadius;
         _spherecastsInterval /= SpherecastsPerSec;
+        
+        _gapCamEnableRadius = _currTargetOrbitRadius * GapCamEnableRadiusFactor;
+        _gapCamDisableRadius = _currTargetOrbitRadius * GapCamDisableRadiusFactor;
         _gapCamMinResetRadius = _currTargetOrbitRadius * GapCamResetRadiusFactor;
+        if (_gapCamDisableRadius <= _gapCamEnableRadius)
+            _gapCamDisableRadius = _currTargetOrbitRadius * (GapCamEnableRadiusFactor + 0.05f);
 
         _spherecastCommands = new (_cameraSphereCastHits.Capacity, Allocator.Persistent);
         _spherecastResults = new (_cameraSphereCastHits.Capacity, Allocator.Persistent);
@@ -236,6 +244,8 @@ public class CameraController : MonoBehaviour
     private bool _gapCamWasEnabled = false;
     private float _gapCamResetTimeAcc = 0.0f;
     private float _prevRadius;
+    private Collider[] _colliderCache = new Collider[64];
+    private RaycastHit[] _raycastHitCache = new RaycastHit[64];
     void LateUpdate()
     {
         float dt = Time.deltaTime;
@@ -332,7 +342,7 @@ public class CameraController : MonoBehaviour
                                _cameraRaycastMask,
                                QueryTriggerInteraction.Ignore) ||
             Physics.OverlapSphere(transform.position,
-                                  CollisionSphereRadius + 0.01f,
+                                  CollisionSphereRadius - 0.01f,
                                   _cameraRaycastMask,
                                   QueryTriggerInteraction.Ignore).Length > 0) 
         {
