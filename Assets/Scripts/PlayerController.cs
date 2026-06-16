@@ -23,6 +23,19 @@ public class JumpParams
         }
         JumpCurve = new (adjustedKeys);
     }
+
+    public static void CalcVelDiffCurve(int numSamples, in AnimationCurve inJumpCurve, out AnimationCurve outVelDiffCurve)
+    {
+        float t = 0.0f;
+        float tStep = 1.0f / numSamples;
+
+        
+
+        for (int i = 0; i < numSamples; i++)
+        {
+            
+        }
+    }
 };
 
 public class PlayerController : MonoBehaviour
@@ -47,6 +60,9 @@ public class PlayerController : MonoBehaviour
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
+
+    private AnimationCurve _FirstJumpVelDiffCurve = new();
+    private AnimationCurve _SecondJumpVelDiffCurve = new();
 
     private JumpParams _currJumpParams;
     private Rigidbody _rigidbody;
@@ -97,7 +113,7 @@ public class PlayerController : MonoBehaviour
 
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
-        Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
+        //Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
     }
 
     // Update is called once per frame

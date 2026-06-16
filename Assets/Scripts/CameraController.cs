@@ -191,7 +191,7 @@ public class CameraController : MonoBehaviour
         _angularSphereCastRadius = maxNearestAngle * 0.6f;
         _cameraSphereCastRadius = _currTargetOrbitRadius * Mathf.Sin(_angularSphereCastRadius);
         _cameraSphereCastRadius *= SphereRadiusIncreaseFactor;
-        Debug.Log(_cameraSphereCastRadius);
+        //Debug.Log(_cameraSphereCastRadius);
         _cameraSphereCastRadius = (OverrideCollisionSphereRadius > _cameraSphereCastRadius) ? 
                                    OverrideCollisionSphereRadius : _cameraSphereCastRadius;
     }
@@ -226,7 +226,7 @@ public class CameraController : MonoBehaviour
                 if (hit.collider == null)
                     continue;
 
-                Debug.DrawLine(Target.position, Target.position + (dir * hit.distance), Color.blue, 0.2f);
+                //Debug.DrawLine(Target.position, Target.position + (dir * hit.distance), Color.blue, 0.2f);
                 _cameraSphereCastHits.Add(dir * hit.distance);
             }
 
@@ -298,7 +298,7 @@ public class CameraController : MonoBehaviour
         {
             targetRadius = hit0.distance;
         }   
-        
+
         if (targetRadius >= _gapCamMinResetRadius && _gapCamResetTimeAcc < GapCamResetTime)
         {
             _gapCamResetTimeAcc += dt;
@@ -311,9 +311,16 @@ public class CameraController : MonoBehaviour
         }
 
         bool enableGapCam = false;
-        if (targetRadius < (_currTargetOrbitRadius * GapCamEnableRadiusFactor))
+        float currCamDist = Vector3.Distance(transform.position, Target.position);
+        
+        if (!_gapCamWasEnabled && targetRadius < (_currTargetOrbitRadius * GapCamEnableRadiusFactor))
         {
-            enableGapCam = true;
+            enableGapCam = !Physics.Raycast(transform.position, 
+                                            -cameraForward,
+                                            out RaycastHit disableHit,
+                                            _currTargetOrbitRadius - currCamDist,
+                                            _cameraRaycastMask,
+                                            QueryTriggerInteraction.Ignore);
             _gapCamResetTimeAcc = 0.0f;
         }
         else if (_gapCamWasEnabled)
@@ -340,7 +347,7 @@ public class CameraController : MonoBehaviour
                                     _cameraRaycastMask,
                                     QueryTriggerInteraction.Ignore))
                 {
-                    Debug.DrawLine(origin, point.position, Color.red);
+                    //Debug.DrawLine(origin, point.position, Color.red);
                     numVisChecksPassed++;
                 }   
             }
@@ -362,28 +369,24 @@ public class CameraController : MonoBehaviour
                                                                   _cameraRaycastMask,
                                                                   QueryTriggerInteraction.Ignore)) > 0)
         {
-            float minDist = float.PositiveInfinity;
-            int minDistIndex = 0;
-
+            List<Vector2> diffsAndDists = new();
             for (int i = 0; i < gapCamSphereOverlapCount; i++)
             {
                 for (int j = 0; j < gapCamSphereCastHitCount; j++)
                 {
                     if (_colliderCache[i] != _raycastHitCache[j].collider)
                         continue;
-
-                    if (_raycastHitCache[j].distance < minDist)
-                    {
-                        minDist = _raycastHitCache[j].distance;
-                        minDistIndex = j;   
-                    }
+                    
+                    float dist = _raycastHitCache[j].distance;
+                    diffsAndDists.Add(new (Mathf.Abs(currCamDist - dist), dist));
                     break;
                 }
             }
 
-            //Debug.Log($"Min dist: {minDist} {enableGapCam}");
+            diffsAndDists.Sort((a, b) => a.x.CompareTo(b.x));
+            float finalDist = diffsAndDists[0].y;
 
-            if (enableGapCam && minDist <= _gapCamDisableRadius)
+            if (enableGapCam && finalDist <= _gapCamDisableRadius)
             {
                 _gapCamCanBeEnabled = false;
                 _gapCamWasEnabled = false;
@@ -391,29 +394,28 @@ public class CameraController : MonoBehaviour
             }
             else if (enableGapCam)
             {
-                targetRadius = minDist;
+                targetRadius = finalDist;
                 gapCamRadiusReduced = true;
             }
         }
-        
-        RaycastHit gapCamProjectedPosHit = new RaycastHit();
-        if (!enableGapCam ||
-           (Physics.Raycast(transform.position, 
-                            -cameraForward,
-                            out gapCamProjectedPosHit,
-                            _currTargetOrbitRadius - 
-                            Vector3.Distance(transform.position, Target.position),
-                            _cameraRaycastMask,
-                            QueryTriggerInteraction.Ignore) && 
-                            gapCamProjectedPosHit.distance <= 1.0f))
+        if (!enableGapCam)
         {
             _gapCamWasEnabled = false;
             numVisChecksPassed = 0;
         }
-        Debug.Log(gapCamProjectedPosHit.distance);
 
         if (numVisChecksPassed > 0 && !gapCamRadiusReduced)
-            targetRadius = _currTargetOrbitRadius;
+        {
+            bool isGapCamDistHit = Physics.SphereCast(transform.position,
+                                                      CollisionSphereRadius, 
+                                                      -cameraForward,
+                                                      out RaycastHit gapCamDistHit,
+                                                      _currTargetOrbitRadius - currCamDist,
+                                                      _cameraRaycastMask,
+                                                      QueryTriggerInteraction.Ignore);
+
+            targetRadius = isGapCamDistHit ? (currCamDist + gapCamDistHit.distance) : _currTargetOrbitRadius;
+        }
         else if ((isHit = Physics.SphereCast(Target.position, 
                                    CollisionSphereRadius,
                                    adjustedCameraPos, 
@@ -439,7 +441,7 @@ public class CameraController : MonoBehaviour
                                       targetRadius, 
                                       Mathf.SmoothStep(0.0f, 1.0f, GoInwardSpeed * dt));
         }
-
+        
         transform.position = Target.position + (adjustedCameraPos * targetRadius);
         transform.rotation = _cameraOrientation;
 
@@ -542,48 +544,10 @@ public class CameraController : MonoBehaviour
         transform.position += forwardDir * MoveSpeed * inDeltaTime;
     }
 
-    public static Vector3 GetCentreControlPoint(Vector3 inFrom, Vector3 inTo, Quaternion inStartRot, Quaternion inInputRot)
-    {
-        Vector3 inFromUnit = inFrom.normalized;
-        Vector3 inToUnit = inTo.normalized;
-        
-        Vector3 toFrom = inFrom - inTo;
-        Vector3 toFromTangent = Vector3.ProjectOnPlane(toFrom, inToUnit).normalized;
-
-        float angle = Mathf.Acos(Vector3.Dot(inFromUnit, inToUnit));
-        if ((Mathf.Rad2Deg * angle) > 120.0f)
-        {
-            Vector3 norm = Quaternion.Slerp(inStartRot, inInputRot, 0.5f) * inFromUnit;
-            return norm * toFrom.magnitude * 0.5f;
-        }
-        
-        float denom = Vector3.Dot(inFromUnit, toFromTangent);        
-        if (Mathf.Abs(denom) <= 0.0001f)
-        {
-            Vector3 norm = Quaternion.Slerp(inStartRot, inInputRot, 0.5f) * inFromUnit;
-            return norm * toFrom.magnitude * 0.5f;
-        }
-
-        float d = Vector3.Dot(inFromUnit, toFrom) / denom;
-        return inTo + (toFromTangent * d);
-    }
-
     // Adapted from https://github.com/godotengine/godot-proposals/issues/8906
     public static Quaternion GetRotationAroundAxis(Quaternion inRot, Vector3 inAxis)
     {
         Vector3 projection = Vector3.Project(new Vector3(inRot.x, inRot.y, inRot.z), inAxis);
         return new Quaternion(projection.x, projection.y, projection.z, inRot.w).normalized;
-    }
-
-    public static Vector3 CustomLerp(Vector3 inPosOne, Vector3 inPosTwo, float inDelta, float inMinDist = 0.001f)
-    {
-        Vector3 toTwo = inPosTwo - inPosOne;
-        float toTwoDist = toTwo.magnitude;
-        
-        if (inDelta >= toTwoDist || toTwoDist <= inMinDist)
-            return inPosTwo;
-
-        toTwo.Normalize();
-        return inPosOne + (toTwo * inDelta);
     }
 }

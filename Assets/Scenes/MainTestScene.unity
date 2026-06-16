@@ -1094,7 +1094,8 @@ MonoBehaviour:
   SphereRadiusIncreaseFactor: 1.25
   SphereHitDistanceFactor: 0.9
   SpherecastsPerSec: 30
-  GapCamEnableRadiusFactor: 0.22
+  GapCamEnableRadiusFactor: 0.25
+  GapCamDisableRadiusFactor: 0.3
   GapCamResetRadiusFactor: 0.9
   GapCamResetTime: 1
   NumSphereHitDirRings: 16
