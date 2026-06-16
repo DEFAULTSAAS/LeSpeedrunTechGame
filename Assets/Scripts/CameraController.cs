@@ -241,6 +241,7 @@ public class CameraController : MonoBehaviour
         // }
     }
 
+    private bool _gapCamCanBeEnabled = true;
     private bool _gapCamWasEnabled = false;
     private float _gapCamResetTimeAcc = 0.0f;
     private float _prevRadius;
@@ -263,12 +264,14 @@ public class CameraController : MonoBehaviour
         _cameraOrientation = Quaternion.AngleAxis(lookInput.x, Vector3.up) * 
                              Quaternion.AngleAxis(lookInput.y, _cameraOrientation * Vector3.right) * 
                              _cameraOrientation;
+        _cameraOrientation.Normalize();
         
         Quaternion aroundYRot = GetRotationAroundAxis(_cameraOrientation, Vector3.up);
         Vector3 forwardWithYRot = aroundYRot * Vector3.forward;
+        Vector3 cameraForward = _cameraOrientation * Vector3.forward;
         Vector3 rotatedYAxis = _cameraOrientation * Vector3.up;
 
-        float forwardDot = Vector3.Dot(_cameraOrientation * Vector3.forward, forwardWithYRot);
+        float forwardDot = Vector3.Dot(cameraForward, forwardWithYRot);
         float upDot = Vector3.Dot(rotatedYAxis, forwardWithYRot);
 
         Quaternion maxUpOrientation;
@@ -297,9 +300,15 @@ public class CameraController : MonoBehaviour
         }   
         
         if (targetRadius >= _gapCamMinResetRadius && _gapCamResetTimeAcc < GapCamResetTime)
+        {
             _gapCamResetTimeAcc += dt;
+            _gapCamCanBeEnabled = true;
+        }
         else if (targetRadius >= _gapCamMinResetRadius)
+        {
             _gapCamWasEnabled = false;
+            _gapCamCanBeEnabled = true;
+        }
 
         bool enableGapCam = false;
         if (targetRadius < (_currTargetOrbitRadius * GapCamEnableRadiusFactor))
@@ -309,6 +318,8 @@ public class CameraController : MonoBehaviour
         }
         else if (_gapCamWasEnabled)
             enableGapCam = true;
+
+        enableGapCam = _gapCamCanBeEnabled ? enableGapCam : false;
         _gapCamWasEnabled = (enableGapCam || _gapCamWasEnabled) ? true : false;
 
         // Top left - bottom left - top right - bottom right
@@ -334,32 +345,85 @@ public class CameraController : MonoBehaviour
                 }   
             }
         }
+
+        bool gapCamRadiusReduced = false;
+        int gapCamSphereCastHitCount = 0;
+        int gapCamSphereOverlapCount = Physics.OverlapSphereNonAlloc(transform.position,
+                                                          CollisionSphereRadius,
+                                                          _colliderCache,
+                                                          _cameraRaycastMask,
+                                                          QueryTriggerInteraction.Ignore);
+        if (gapCamSphereOverlapCount > 0 && 
+           (gapCamSphereCastHitCount = Physics.SphereCastNonAlloc(Target.position,
+                                                                  CollisionSphereRadius,
+                                                                  adjustedCameraPos,
+                                                                  _raycastHitCache,
+                                                                  _currTargetOrbitRadius,
+                                                                  _cameraRaycastMask,
+                                                                  QueryTriggerInteraction.Ignore)) > 0)
+        {
+            float minDist = float.PositiveInfinity;
+            int minDistIndex = 0;
+
+            for (int i = 0; i < gapCamSphereOverlapCount; i++)
+            {
+                for (int j = 0; j < gapCamSphereCastHitCount; j++)
+                {
+                    if (_colliderCache[i] != _raycastHitCache[j].collider)
+                        continue;
+
+                    if (_raycastHitCache[j].distance < minDist)
+                    {
+                        minDist = _raycastHitCache[j].distance;
+                        minDistIndex = j;   
+                    }
+                    break;
+                }
+            }
+
+            //Debug.Log($"Min dist: {minDist} {enableGapCam}");
+
+            if (enableGapCam && minDist <= _gapCamDisableRadius)
+            {
+                _gapCamCanBeEnabled = false;
+                _gapCamWasEnabled = false;
+                numVisChecksPassed = 0;
+            }
+            else if (enableGapCam)
+            {
+                targetRadius = minDist;
+                gapCamRadiusReduced = true;
+            }
+        }
+        
+        RaycastHit gapCamProjectedPosHit = new RaycastHit();
         if (!enableGapCam ||
-            Physics.Raycast(transform.position, 
-                               -transform.forward,
-                               _currTargetOrbitRadius - 
-                               Vector3.Distance(transform.position, Target.position),
-                               _cameraRaycastMask,
-                               QueryTriggerInteraction.Ignore) ||
-            Physics.OverlapSphere(transform.position,
-                                  CollisionSphereRadius - 0.01f,
-                                  _cameraRaycastMask,
-                                  QueryTriggerInteraction.Ignore).Length > 0) 
+           (Physics.Raycast(transform.position, 
+                            -cameraForward,
+                            out gapCamProjectedPosHit,
+                            _currTargetOrbitRadius - 
+                            Vector3.Distance(transform.position, Target.position),
+                            _cameraRaycastMask,
+                            QueryTriggerInteraction.Ignore) && 
+                            gapCamProjectedPosHit.distance <= 1.0f))
         {
             _gapCamWasEnabled = false;
             numVisChecksPassed = 0;
         }
-        
-        if (numVisChecksPassed > 0)
+        Debug.Log(gapCamProjectedPosHit.distance);
+
+        if (numVisChecksPassed > 0 && !gapCamRadiusReduced)
             targetRadius = _currTargetOrbitRadius;
-        else if (isHit = Physics.SphereCast(Target.position, 
+        else if ((isHit = Physics.SphereCast(Target.position, 
                                    CollisionSphereRadius,
                                    adjustedCameraPos, 
                                    out RaycastHit hit1, 
                                    targetRadius, 
                                    _cameraRaycastMask, 
-                                   QueryTriggerInteraction.Ignore))
+                                   QueryTriggerInteraction.Ignore)) &&
+                                   numVisChecksPassed == 0)
         {
+            _gapCamCanBeEnabled = false;
             targetRadius = hit1.distance;
         }
 
