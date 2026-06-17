@@ -23,20 +23,7 @@ public class JumpParams
         }
         JumpCurve = new (adjustedKeys);
     }
-
-    public static void CalcVelDiffCurve(int numSamples, in AnimationCurve inJumpCurve, out AnimationCurve outVelDiffCurve)
-    {
-        float t = 0.0f;
-        float tStep = 1.0f / numSamples;
-
-        
-
-        for (int i = 0; i < numSamples; i++)
-        {
-            
-        }
-    }
-};
+}
 
 public class PlayerController : MonoBehaviour
 {
@@ -61,9 +48,6 @@ public class PlayerController : MonoBehaviour
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
 
-    private AnimationCurve _FirstJumpVelDiffCurve = new();
-    private AnimationCurve _SecondJumpVelDiffCurve = new();
-
     private JumpParams _currJumpParams;
     private Rigidbody _rigidbody;
     private Vector2 _moveInputAcc;
@@ -76,6 +60,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 _momentumDir;
     
     private float _momentumMag;
+    private float _prevYVel = 0.0f;
     private float _currJumpTime;
     private float _remainingJumpTime;
     private float _onGroundSphereCastDist;
@@ -216,35 +201,45 @@ public class PlayerController : MonoBehaviour
             float t = _currJumpTime / _currJumpParams.JumpDuration;
             float adjustedDT = dt / _currJumpParams.JumpDuration;
             
-            float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurve, 1.0f, t, adjustedDT);
+            //float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurve, 1.0f, t, adjustedDT);
             float heightDelta = CalcCurveVelocity(_currJumpParams.JumpCurve, t, adjustedDT);
+            float velocity = heightDelta * _currJumpParams.JumpHeight; 
+            
+            velocity /= _currJumpParams.JumpDuration;
+            velocity -= Physics.gravity.y * dt;
 
-            float force = acceleration * _currJumpParams.JumpHeight;
-            force /= _currJumpParams.JumpDuration * _currJumpParams.JumpDuration;
-            force -= (_currJumpParams.IncludeGravityOnDecent && heightDelta < 0.0f) ? 0.0f : Physics.gravity.y;
-            // We need to take gravity into account, to ensure the jump height curve is followed properly.
-            // This is due to the jump height curve not taking gravity into account itself.
+            // float force = acceleration * _currJumpParams.JumpHeight;
+            // force /= _currJumpParams.JumpDuration * _currJumpParams.JumpDuration;
+            // force -= (_currJumpParams.IncludeGravityOnDecent && heightDelta < 0.0f) ? 0.0f : Physics.gravity.y;
+            // // We need to take gravity into account, to ensure the jump height curve is followed properly.
+            // // This is due to the jump height curve not taking gravity into account itself.
 
-            currVel = new Vector3(0.0f, _rigidbody.linearVelocity.y, 0.0f);
-            currVel.y += force;
+            // _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
+            _rigidbody.AddForce(Vector3.up * velocity, ForceMode.VelocityChange);
+            _rigidbody.AddForce(Vector3.up * -_prevYVel, ForceMode.VelocityChange);
+            _prevYVel = velocity + (Physics.gravity.y * dt);
 
-            _rigidbody.AddForce(Vector3.up * force, ForceMode.Acceleration);
             _remainingJumpTime -= dt;   
             _currJumpTime += dt;
         }
         else if (_isFirstJumpUpdate)
         {
+            if (_isOnGround)
+                _prevYVel = -(Physics.gravity.y * dt);
+            else
+                _prevYVel += Physics.gravity.y * dt;
+                
             _isOnGround = false;
             _isFirstJumpUpdate = false;
-            float firstCurveHeight = _currJumpParams.JumpCurve.Evaluate(dt / _currJumpParams.JumpDuration) * 
-                                     _currJumpParams.JumpHeight;
-            float speed = firstCurveHeight / dt;
+            // float firstCurveHeight = _currJumpParams.JumpCurve.Evaluate(dt / _currJumpParams.JumpDuration) * 
+            //                          _currJumpParams.JumpHeight;
+            // float speed = firstCurveHeight / dt;
             
-            speed -= _rigidbody.linearVelocity.y;
-            speed = (speed < 0.0f) ? 0.0f : speed;
+            // speed -= _rigidbody.linearVelocity.y;
+            // speed = (speed < 0.0f) ? 0.0f : speed;
 
-            speed -= Physics.gravity.y * dt;
-            _rigidbody.AddForce(Vector3.up * speed, ForceMode.VelocityChange);
+            // speed -= Physics.gravity.y * dt;
+            // _rigidbody.AddForce(Vector3.up * speed, ForceMode.VelocityChange);
         }
     }
 
