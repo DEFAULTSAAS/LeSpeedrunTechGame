@@ -746,9 +746,13 @@ MonoBehaviour:
   DirChangeRate: 5
   DirChangeRateVelFactor: 1
   FirstJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 0
     IncludeGravityOnDecent: 0
     JumpHeight: 1
-    JumpDuration: 0.7
+    JumpWidth: 0
+    VerticalJumpDuration: 0.5
+    HorizontalJumpDuration: 0
     JumpCurve:
       serializedVersion: 2
       m_Curve:
@@ -809,10 +813,16 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
+    JumpMode: 1
+    JumpType: 0
   SecondJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 0
     IncludeGravityOnDecent: 0
     JumpHeight: 0.75
-    JumpDuration: 0.5
+    JumpWidth: 0
+    VerticalJumpDuration: 0.5
+    HorizontalJumpDuration: 0
     JumpCurve:
       serializedVersion: 2
       m_Curve:
@@ -864,6 +874,8 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
+    JumpMode: 1
+    JumpType: 0
   MinSecondJumpDelay: 0.1
   MaxSecondJumpDelay: 0.75
   OnGroundRadiusReduction: 0.1
