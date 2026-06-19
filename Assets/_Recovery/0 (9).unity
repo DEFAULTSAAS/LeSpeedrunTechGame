@@ -750,11 +750,10 @@ MonoBehaviour:
   FirstJumpParams:
     IsVerticalJump: 1
     IsHorizontalJump: 0
-    UseLocalAxis: 0
     IncludeGravityOnDecent: 0
     JumpHeight: 1
     JumpWidth: 0
-    VerticalJumpDuration: 0.5
+    VerticalJumpDuration: 0
     HorizontalJumpDuration: 0
     JumpCurve:
       serializedVersion: 2
@@ -816,17 +815,15 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    JumpAxis: {x: 0, y: 1, z: 0}
-    JumpMode: 2
-    JumpType: 35
+    JumpMode: 0
+    JumpType: 0
   SecondJumpParams:
     IsVerticalJump: 1
     IsHorizontalJump: 0
-    UseLocalAxis: 0
     IncludeGravityOnDecent: 0
     JumpHeight: 0.75
     JumpWidth: 0
-    VerticalJumpDuration: 0.5
+    VerticalJumpDuration: 0
     HorizontalJumpDuration: 0
     JumpCurve:
       serializedVersion: 2
@@ -879,9 +876,8 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    JumpAxis: {x: 0, y: 1, z: 0}
-    JumpMode: 2
-    JumpType: 34
+    JumpMode: 0
+    JumpType: 0
   MinSecondJumpDelay: 0.1
   MaxSecondJumpDelay: 0.75
   OnGroundRadiusReduction: 0.1

@@ -9,7 +9,8 @@ public enum InputActions
     RightSide,
     ForwardLeftSide,
     ForwardRightSide,
-    Charge
+    Slam,
+    Charge,
 }
 
 public class PlayerInputSystem : MonoBehaviour
