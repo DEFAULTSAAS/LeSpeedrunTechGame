@@ -212,6 +212,10 @@ public class PlayerController : MonoBehaviour
         
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
+        
+        _moveInputAction.started += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+        _moveInputAction.performed += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+        _moveInputAction.canceled += PlayerInputSystem.MainPISInstance.HandleInputCallback;
 
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
@@ -304,11 +308,10 @@ public class PlayerController : MonoBehaviour
         Vector3 targetVelXZ = _playerMoveDir * currMoveSpeed;
         Vector3 currVel = _rigidbody.linearVelocity; currVel.y = 0.0f;
 
-        if (targetVelXZ == Vector3.zero && _currJumpParams.JumpType == JumpTypes.Double)
+        if (targetVelXZ == Vector3.zero && _jumpManager.CurrJump.JumpType == JumpTypes.Double)
             targetVelXZ = currVel.normalized * currMoveSpeed;
         _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
 
-        Debug.Log(_jumpManager.CurrJump.RemainingVertJumpTime);
         _moveInputAcc = Vector2.zero;
         if (_currJumpParams.IsVerticalJump && _jumpManager.CurrJump.RemainingVertJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
