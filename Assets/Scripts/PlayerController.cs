@@ -20,7 +20,8 @@ public enum JumpTypes
     Side = 8,
     Long = 16,
     Slam = 32,
-    Bonk = 64
+    Swing = 64,
+    Bonk = 128
 }
 
 [Serializable]
