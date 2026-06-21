@@ -12,8 +12,9 @@ public enum PlayerActions
     RightSide,
     ForwardLeftSide,
     ForwardRightSide,
-    Slam,
     Charge,
+    Slam,
+    Swing
 }
 
 public struct InputActionState
