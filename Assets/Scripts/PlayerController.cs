@@ -166,6 +166,7 @@ public class PlayerController : MonoBehaviour
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
+    private InputAction _crouchInputAction;
 
     private JumpManager _jumpManager = new();
     private JumpParams _currJumpParams = new();
@@ -212,16 +213,23 @@ public class PlayerController : MonoBehaviour
         
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
+        _crouchInputAction = InputSystem.actions.FindAction("Crouch");
         
-        _moveInputAction.started += PlayerInputSystem.MainPISInstance.HandleInputCallback;
         _moveInputAction.performed += PlayerInputSystem.MainPISInstance.HandleInputCallback;
         _moveInputAction.canceled += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+
+        _jumpInputAction.performed += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+        _jumpInputAction.canceled += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+       
+        _crouchInputAction.performed += PlayerInputSystem.MainPISInstance.HandleInputCallback;
+        _crouchInputAction.canceled += PlayerInputSystem.MainPISInstance.HandleInputCallback;
 
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
         //Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
     }
 
+    float lastInputStateRefresh = 0.0f;
     // Update is called once per frame
     void Update()
     {
@@ -248,6 +256,12 @@ public class PlayerController : MonoBehaviour
 
             if (jumpTriggered)
                 _isFirstJumpUpdate = true;
+        }
+
+        if ((Time.time - lastInputStateRefresh) > 0.01f)
+        {
+            lastInputStateRefresh = Time.time;
+            PlayerInputSystem.MainPISInstance.ProcessInputActionStates();
         }
     }
 

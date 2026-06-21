@@ -1150,8 +1150,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInputSystem
   InputActionStateRemovalDelay: 0.0167
   MoveInputActionName: Move
-  PersistentInputActions:
-  - Move
+  JumpInputActionName: Jump
+  CrouchInputActionName: Crouch
+  StrafingInputActionName: Sprint
+  PersistentInputActions: 0100000003000000
 --- !u!1 &934377068
 GameObject:
   m_ObjectHideFlags: 0
