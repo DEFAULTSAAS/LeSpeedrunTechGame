@@ -52,14 +52,15 @@ public class JumpParams
     public float VerticalJumpDuration;
     public float HorizontalJumpDuration;
     
-    public AnimationCurve JumpCurve;
+    public JumpParamsTuple<AnimationCurve> JumpCurves;
     public JumpParamsTuple<Vector3> JumpAxes = new(Vector3.up, Vector3.right);
     public JumpModes JumpMode;
     public JumpTypes JumpType;
     
     public void AdjustJumpCurve()
     {
-        AdjustJumpCurve(ref JumpCurve);
+        AdjustJumpCurve(ref JumpCurves.Y);
+        AdjustJumpCurve(ref JumpCurves.X);
     }
 
     public static void AdjustJumpCurve(ref AnimationCurve inJumpCurve)
@@ -175,7 +176,6 @@ public class PlayerController : MonoBehaviour
     // How much the current horizontal velocity effects how quickly the player direction is changed.
     public float DirChangeRateVelFactor = 1.0f;
 
-    public AnimationCurve HorizontalJumpCurve;
     public JumpParams FirstJumpParams;
     public JumpParams SecondJumpParams;
     public JumpParams BackflipJumpParams;
@@ -255,7 +255,6 @@ public class PlayerController : MonoBehaviour
         SecondJumpParams.AdjustJumpCurve();
         BackflipJumpParams.AdjustJumpCurve();
         LeftSideFlipJumpParams.AdjustJumpCurve();
-        JumpParams.AdjustJumpCurve(ref HorizontalJumpCurve);
         //Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
     }
 
@@ -360,14 +359,30 @@ public class PlayerController : MonoBehaviour
             (_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && _currJumpParams.AllowsMidAirControl))
             _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
 
+        Vector3 chosenYAxis = _currJumpParams.JumpAxes.Y;
+        Vector3 chosenXAxis = _currJumpParams.JumpAxes.X;
+
+        if (_currJumpParams.UseLocalAxes.Y)
+        {
+            chosenYAxis = (transform.forward * _currJumpParams.JumpAxes.Y.z) + 
+                          (transform.right * _currJumpParams.JumpAxes.Y.x) + 
+                          (transform.up * _currJumpParams.JumpAxes.Y.y); 
+        }
+        if (_currJumpParams.UseLocalAxes.X)
+        {
+            chosenXAxis = (transform.forward * _currJumpParams.JumpAxes.X.z) + 
+                          (transform.right * _currJumpParams.JumpAxes.X.x) + 
+                          (transform.up * _currJumpParams.JumpAxes.X.y);
+        }
+
         _moveInputAcc = Vector2.zero;
         if (_currJumpParams.IsVerticalJump && _jumpManager.CurrJump.RemainingVertJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
             float t = _jumpManager.CurrJump.CurrVertJumpTime / _currJumpParams.VerticalJumpDuration;
             float adjustedDT = dt / _currJumpParams.VerticalJumpDuration;
             
-            float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurve, t, adjustedDT);
-            float heightDelta = CalcCurveVelocity(_currJumpParams.JumpCurve, t, adjustedDT);
+            float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurves.Y, t, adjustedDT);
+            float heightDelta = CalcCurveVelocity(_currJumpParams.JumpCurves.Y, t, adjustedDT);
             
             float velocity = heightDelta * _currJumpParams.JumpHeight / _currJumpParams.VerticalJumpDuration; 
             float gravity = (_currJumpParams.IncludeGravityOnDecent && heightDelta < 0.0f) ? 0.0f : Physics.gravity.y;
@@ -379,11 +394,11 @@ public class PlayerController : MonoBehaviour
             // This is due to the jump height curve not taking gravity into account itself.
 
             if (_currJumpParams.JumpMode == JumpModes.Acceleration)
-                _rigidbody.AddForce(Vector3.up * acceleration, ForceMode.Acceleration);
+                _rigidbody.AddForce(chosenYAxis * acceleration, ForceMode.Acceleration);
             else
             {
-                _rigidbody.AddForce(Vector3.up * (velocity - (gravity * dt)), ForceMode.VelocityChange);
-                _rigidbody.AddForce(Vector3.up * -_jumpManager.PrevVel.y, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(chosenYAxis * (velocity - (gravity * dt)), ForceMode.VelocityChange);
+                _rigidbody.AddForce(chosenYAxis * -_jumpManager.PrevVel.y, ForceMode.VelocityChange);   
             }
             
             _jumpManager.PrevVel.y = velocity;
@@ -402,14 +417,14 @@ public class PlayerController : MonoBehaviour
             if (_currJumpParams.JumpMode == JumpModes.Acceleration)
             {
                 float adjustedDT = dt / _currJumpParams.VerticalJumpDuration;
-                float firstCurveHeight = CalcCurveVelocity(_currJumpParams.JumpCurve, 0.0f, adjustedDT) * _currJumpParams.JumpHeight;
+                float firstCurveHeight = CalcCurveVelocity(_currJumpParams.JumpCurves.Y, 0.0f, adjustedDT) * _currJumpParams.JumpHeight;
                 float speed = firstCurveHeight / _currJumpParams.VerticalJumpDuration;
                 
-                speed -= _rigidbody.linearVelocity.y;
+                speed -= Vector3.Project(Vector3.one * _rigidbody.linearVelocity.y, chosenYAxis).magnitude;
                 speed = (speed < 0.0f) ? 0.0f : speed;
 
                 speed += Physics.gravity.y * dt;
-                _rigidbody.AddForce(Vector3.up * speed, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(chosenYAxis * speed, ForceMode.VelocityChange);   
             }
         }
 
@@ -418,8 +433,8 @@ public class PlayerController : MonoBehaviour
             float t = _jumpManager.CurrJump.CurrHoriJumpTime/ _currJumpParams.HorizontalJumpDuration;
             float adjustedDT = dt / _currJumpParams.HorizontalJumpDuration;
             
-            float acceleration = CalcCurveAcceleration(HorizontalJumpCurve, t, adjustedDT);
-            float widthDelta = CalcCurveVelocity(HorizontalJumpCurve, t, adjustedDT);
+            float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurves.X, t, adjustedDT);
+            float widthDelta = CalcCurveVelocity(_currJumpParams.JumpCurves.X, t, adjustedDT);
             float velocity = widthDelta * _currJumpParams.JumpWidth / _currJumpParams.HorizontalJumpDuration; 
 
             acceleration *= _currJumpParams.JumpWidth;
@@ -428,11 +443,11 @@ public class PlayerController : MonoBehaviour
             // This is due to the jump height curve not taking gravity into account itself.
 
             if (_currJumpParams.JumpMode == JumpModes.Acceleration)
-                _rigidbody.AddForce(transform.right * acceleration, ForceMode.Acceleration);
+                _rigidbody.AddForce(chosenXAxis * acceleration, ForceMode.Acceleration);
             else
             {
-                _rigidbody.AddForce(transform.right * velocity, ForceMode.VelocityChange);
-                _rigidbody.AddForce(transform.right * -_jumpManager.PrevVel.x, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(chosenXAxis * velocity, ForceMode.VelocityChange);
+                _rigidbody.AddForce(chosenXAxis * -_jumpManager.PrevVel.x, ForceMode.VelocityChange);   
             }
             
             _jumpManager.PrevVel.x = velocity;
@@ -449,12 +464,12 @@ public class PlayerController : MonoBehaviour
             if (_currJumpParams.JumpMode == JumpModes.Acceleration)
             {
                 float adjustedDT = dt / _currJumpParams.HorizontalJumpDuration;
-                float firstCurveWidth = CalcCurveVelocity(HorizontalJumpCurve, 0.0f, adjustedDT) * _currJumpParams.JumpWidth;
+                float firstCurveWidth = CalcCurveVelocity(_currJumpParams.JumpCurves.X, 0.0f, adjustedDT) * _currJumpParams.JumpWidth;
                 float speed = firstCurveWidth / _currJumpParams.HorizontalJumpDuration;
                 
-                speed -= Vector3.Project(_rigidbody.linearVelocity, transform.right).magnitude;
+                speed -= Vector3.Project(_rigidbody.linearVelocity, chosenXAxis).magnitude;
                 speed = (speed < 0.0f) ? 0.0f : speed;
-                _rigidbody.AddForce(transform.right * speed, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(chosenXAxis * speed, ForceMode.VelocityChange);   
             }
         }
     }
