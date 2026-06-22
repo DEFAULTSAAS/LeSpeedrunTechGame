@@ -11,7 +11,9 @@ public enum PlayerInputActionTypes
     Move,
     Jump,
     Crouch,
-    Strafing
+    Strafing,
+    Swing,
+    Fire
 }
 
 public enum PlayerActions
@@ -25,7 +27,7 @@ public enum PlayerActions
     ForwardLeftSide,
     ForwardRightSide,
     Charge,
-    Slam,
+    Fire,
     Swing
 }
 
@@ -52,6 +54,8 @@ public class PlayerInputSystem : MonoBehaviour
     public PlayerInputActionTypes[] PersistentInputActions = new PlayerInputActionTypes[]{PlayerInputActionTypes.Move};
 
     private Dictionary<string, PlayerInputActionTypes> _actionNameToActionType = new();
+    private Dictionary<PlayerInputActionTypes, float> _currActionsTriggerTime = new();
+    private Dictionary<PlayerInputActionTypes, float> _prevActionsTriggerTime = new();
     private List<Tuple<PlayerInputActionTypes[], Func<List<InputActionState>, PlayerActions>>> _inputActionsToPlayerAction = new(); 
     private List<PlayerInputActionTypes> _playerInputActionTypes = new();
     private List<InputActionState> _inputActionStates = new(); 
@@ -69,7 +73,24 @@ public class PlayerInputSystem : MonoBehaviour
         _actionNameToActionType[CrouchInputActionName] = PlayerInputActionTypes.Crouch;
         _actionNameToActionType[StrafingInputActionName] = PlayerInputActionTypes.Strafing;
 
-        _inputActionsToPlayerAction.Add(new(new []{PlayerInputActionTypes.Jump}, (_) => {return PlayerActions.Jump;}));
+        foreach (PlayerInputActionTypes playerInputActionType in Enum.GetValues(typeof(PlayerInputActionTypes)))
+        {
+            _currActionsTriggerTime[playerInputActionType] = 0.0f;
+            _prevActionsTriggerTime[playerInputActionType] = 0.0f;   
+        }
+
+        _inputActionsToPlayerAction.Add(new(new[]{PlayerInputActionTypes.Jump}, (_) => {return PlayerActions.Jump;}));
+        _inputActionsToPlayerAction.Add(new(new[]{PlayerInputActionTypes.Swing}, (_) => {return PlayerActions.Swing;}));
+        _inputActionsToPlayerAction.Add(new(new[]{PlayerInputActionTypes.Fire}, (_) => {return PlayerActions.Fire;}));
+        
+        _inputActionsToPlayerAction.Add(new(new[]{PlayerInputActionTypes.Crouch}, 
+                                                  (states) => {
+            if ((_currActionsTriggerTime[PlayerInputActionTypes.Crouch] - 
+                 _prevActionsTriggerTime[PlayerInputActionTypes.Crouch]) < 0.2f)
+                return PlayerActions.Charge;
+            return PlayerActions.None;                                              
+        }));
+
         _inputActionsToPlayerAction.Add(new(new []{PlayerInputActionTypes.Move, 
                                                    PlayerInputActionTypes.Jump, 
                                                    PlayerInputActionTypes.Crouch}, 
@@ -242,6 +263,9 @@ public class PlayerInputSystem : MonoBehaviour
                         continue;
                     actionStateFound = true;
                     
+                    _prevActionsTriggerTime[actionType] = _currActionsTriggerTime[actionType];
+                    _currActionsTriggerTime[actionType] = Time.time;
+
                     InputActionState inputActionState = _inputActionStates[i];
                     inputActionState.ActionTime = Time.time;
                     inputActionState.AxisValue = (context.action.expectedControlType == "Vector2") ? 
@@ -253,6 +277,9 @@ public class PlayerInputSystem : MonoBehaviour
 
                 if (!actionStateFound)
                 {
+                    _prevActionsTriggerTime[actionType] = _currActionsTriggerTime[actionType];
+                    _currActionsTriggerTime[actionType] = Time.time;
+
                     InputActionState inputActionState;
                     inputActionState.ActionType = actionType;
                     inputActionState.ActionTime = Time.time;

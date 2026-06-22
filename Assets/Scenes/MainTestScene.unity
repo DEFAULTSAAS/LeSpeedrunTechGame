@@ -1153,7 +1153,7 @@ MonoBehaviour:
   JumpInputActionName: Jump
   CrouchInputActionName: Crouch
   StrafingInputActionName: Sprint
-  PersistentInputActions: 0100000003000000
+  PersistentInputActions: 010000000300000004000000
 --- !u!1 &934377068
 GameObject:
   m_ObjectHideFlags: 0
