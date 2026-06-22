@@ -46,6 +46,7 @@ public class PlayerInputSystem : MonoBehaviour
 
     // The amount of time in seconds, before a input action state is removed and no longer processed for player actions.
     public float InputActionStateRemovalDelay = 0.0167f; 
+    public float InputActionStateChangeNotedTime = 0.5f;
     public string MoveInputActionName = "Move";
     public string JumpInputActionName = "Jump";
     public string CrouchInputActionName = "Crouch";
@@ -198,8 +199,20 @@ public class PlayerInputSystem : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        _inputActionStates.RemoveAll(inputActionState => (Time.time - inputActionState.ActionTime) > 
-                                     InputActionStateRemovalDelay && !inputActionState.IsPersistent);
+        
+    }
+
+    public List<PlayerActions> GetPlayerActions()
+    {
+        return _playerActionBuffer;
+    }
+
+    public PlayerActions GetPlayerAction(int inIndex)
+    {
+        if (inIndex >= _playerActionBuffer.Count)
+            return PlayerActions.None;
+
+        return _playerActionBuffer[inIndex];
     }
 
     public void ProcessInputActionStates()
@@ -233,15 +246,22 @@ public class PlayerInputSystem : MonoBehaviour
         for (int i = 0; i < _inputActionStates.Count; i++)
         {
             InputActionState inputActionState = _inputActionStates[i];
-            inputActionState.HasChanged = false;
-            _inputActionStates[i] = inputActionState;
+            if ((Time.time - inputActionState.ActionTime) > InputActionStateChangeNotedTime)
+            {
+                inputActionState.HasChanged = false;
+                _inputActionStates[i] = inputActionState;   
+            }
         }
 
-        if (_playerActionBuffer.Count > 0)
-        {
-            Debug.Log(_playerActionBuffer[0]);
-        }
-        //Debug.Log(string.Join(',', _playerInputActionTypes));   
+        _inputActionStates.RemoveAll(inputActionState => (Time.time - inputActionState.ActionTime) > 
+                                     InputActionStateRemovalDelay && !inputActionState.IsPersistent);
+
+        // if (_playerActionBuffer.Count > 0)
+        // {
+        //     Debug.Log(_playerActionBuffer[0]);
+        // }
+        // if (_playerInputActionTypes.Count > 0)
+        //     Debug.Log(string.Join(',', _playerInputActionTypes));   
     }
 
     public void HandleInputCallback(InputAction.CallbackContext context)
@@ -297,7 +317,12 @@ public class PlayerInputSystem : MonoBehaviour
                 {
                     if (_inputActionStates[i].ActionType == actionType)
                     {
-                        _inputActionStates.RemoveAt(i);
+                        // We don't want to remove the action straight away,
+                        // as we want it to be 'buffered' until after its action time has expired.
+                        InputActionState inputActionState = _inputActionStates[i];
+                        inputActionState.IsPersistent = false;
+                        _inputActionStates[i] = inputActionState;
+                        
                         break;   
                     }    
                 }

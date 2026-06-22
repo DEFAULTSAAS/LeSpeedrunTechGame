@@ -747,11 +747,39 @@ MonoBehaviour:
   InAirMoveSpeedFactor: 0.2
   DirChangeRate: 5
   DirChangeRateVelFactor: 1
+  HorizontalJumpCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   FirstJumpParams:
     IsVerticalJump: 1
     IsHorizontalJump: 0
-    UseLocalAxis: 0
+    AllowsMidAirControl: 1
+    UseLocalAxes:
+      Y: 0
+      X: 1
     IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
     JumpHeight: 1
     JumpWidth: 0
     VerticalJumpDuration: 0.5
@@ -816,14 +844,20 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    JumpAxis: {x: 0, y: 1, z: 0}
+    JumpAxes:
+      Y: {x: 0, y: 1, z: 0}
+      X: {x: 1, y: 1, z: 0}
     JumpMode: 2
     JumpType: 35
   SecondJumpParams:
     IsVerticalJump: 1
     IsHorizontalJump: 0
-    UseLocalAxis: 0
+    AllowsMidAirControl: 1
+    UseLocalAxes:
+      Y: 1
+      X: 0
     IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
     JumpHeight: 0.75
     JumpWidth: 0
     VerticalJumpDuration: 0.5
@@ -879,9 +913,167 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    JumpAxis: {x: 0, y: 1, z: 0}
+    JumpAxes:
+      Y: {x: 1, y: 0, z: 0}
+      X: {x: 0, y: 1, z: 0}
     JumpMode: 2
     JumpType: 34
+  BackflipJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 0
+    AllowsMidAirControl: 0
+    UseLocalAxes:
+      Y: 1
+      X: 0
+    IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
+    JumpHeight: 1.5
+    JumpWidth: 0
+    VerticalJumpDuration: 1
+    HorizontalJumpDuration: 0
+    JumpCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 4.387834
+        outSlope: 4.387834
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.10339846
+      - serializedVersion: 3
+        time: 0.26539955
+        value: 0.9127857
+        inSlope: 1.471993
+        outSlope: 1.471993
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.13065438
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.46130952
+        value: 1.0062873
+        inSlope: -0.018161546
+        outSlope: -0.018161546
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.31095353
+        outWeight: 0.0993981
+      - serializedVersion: 3
+        time: 0.62071556
+        value: 0.934591
+        inSlope: -1.4455416
+        outSlope: -1.4455416
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.41121963
+      - serializedVersion: 3
+        time: 0.72671765
+        value: 0.5879043
+        inSlope: -4.039222
+        outSlope: -4.039222
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.20027964
+        outWeight: 0.19317062
+      - serializedVersion: 3
+        time: 0.7552741
+        value: 0.45725876
+        inSlope: -4.918565
+        outSlope: -4.918565
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    JumpAxes:
+      Y: {x: 1, y: 0, z: 0}
+      X: {x: 0, y: 1, z: 0}
+    JumpMode: 2
+    JumpType: 4
+  LeftSideFlipJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 1
+    AllowsMidAirControl: 0
+    UseLocalAxes:
+      Y: 1
+      X: 0
+    IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
+    JumpHeight: 1.5
+    JumpWidth: 1
+    VerticalJumpDuration: 1
+    HorizontalJumpDuration: 1
+    JumpCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2
+        outSlope: 2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.31611663
+        value: 0.9540763
+        inSlope: 1.4124931
+        outSlope: 1.4124931
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.39795056
+        value: 1.0008163
+        inSlope: 0.020381477
+        outSlope: 0.020381477
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33465335
+      - serializedVersion: 3
+        time: 0.5534167
+        value: 0.9838085
+        inSlope: -0.4395942
+        outSlope: -0.4395942
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.16200994
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.6566522
+        value: 0.8578269
+        inSlope: -2.0995786
+        outSlope: -2.0995786
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.061198
+      - serializedVersion: 3
+        time: 0.81404305
+        value: 0.34039366
+        inSlope: -3.3946183
+        outSlope: -3.3946183
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.12549365
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    JumpAxes:
+      Y: {x: 1, y: 0, z: 0}
+      X: {x: 0, y: 1, z: 0}
+    JumpMode: 2
+    JumpType: 8
   MinSecondJumpDelay: 0.1
   MaxSecondJumpDelay: 0.75
   OnGroundRadiusReduction: 0.1
@@ -1148,7 +1340,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df88bc62283054296b9e081375065c53, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInputSystem
-  InputActionStateRemovalDelay: 0.0167
+  InputActionStateRemovalDelay: 0.1
+  InputActionStateChangeNotedTime: 0.5
   MoveInputActionName: Move
   JumpInputActionName: Jump
   CrouchInputActionName: Crouch
