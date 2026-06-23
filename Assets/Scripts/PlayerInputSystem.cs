@@ -202,9 +202,19 @@ public class PlayerInputSystem : MonoBehaviour
         
     }
 
-    public List<PlayerActions> GetPlayerActions()
+    public ref readonly List<PlayerInputActionTypes> GetPlayerInputActionTypes()
     {
-        return _playerActionBuffer;
+        return ref _playerInputActionTypes;
+    }
+
+    public ref readonly List<InputActionState> GetInputActionStates()
+    {
+        return ref _inputActionStates;
+    }
+
+    public ref readonly List<PlayerActions> GetPlayerActions()
+    {
+        return ref _playerActionBuffer;
     }
 
     public PlayerActions GetPlayerAction(int inIndex)

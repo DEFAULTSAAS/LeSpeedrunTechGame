@@ -848,7 +848,9 @@ MonoBehaviour:
     JumpAxes:
       Y: {x: 0, y: 1, z: 0}
       X: {x: 1, y: 0, z: 0}
-    JumpMode: 2
+    JumpModes:
+      Y: 2
+      X: 2
     JumpType: 35
   SecondJumpParams:
     IsVerticalJump: 1
@@ -951,8 +953,88 @@ MonoBehaviour:
     JumpAxes:
       Y: {x: 0, y: 1, z: 0}
       X: {x: 1, y: 0, z: 0}
-    JumpMode: 2
+    JumpModes:
+      Y: 2
+      X: 2
     JumpType: 34
+  LongJumpJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 1
+    AllowsMidAirControl: 0
+    UseLocalAxes:
+      Y: 0
+      X: 1
+    IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
+    JumpHeight: 1
+    JumpWidth: 10
+    VerticalJumpDuration: 1
+    HorizontalJumpDuration: 1
+    JumpCurves:
+      Y:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 4.883021
+          outSlope: 4.883021
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0.034836035
+        - serializedVersion: 3
+          time: 0.4998541
+          value: 0.9987154
+          inSlope: -0.011116901
+          outSlope: -0.011116901
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.09365922
+        - serializedVersion: 3
+          time: 0.9037967
+          value: 0.4436248
+          inSlope: -2.7626548
+          outSlope: -2.7626548
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.04186083
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      X:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    JumpAxes:
+      Y: {x: 0, y: 1, z: 0}
+      X: {x: 0, y: 0, z: 1}
+    JumpModes:
+      Y: 2
+      X: 1
+    JumpType: 16
   BackflipJumpParams:
     IsVerticalJump: 1
     IsHorizontalJump: 0
@@ -1063,7 +1145,9 @@ MonoBehaviour:
     JumpAxes:
       Y: {x: 0, y: 1, z: 0}
       X: {x: 1, y: 0, z: 0}
-    JumpMode: 2
+    JumpModes:
+      Y: 2
+      X: 2
     JumpType: 4
   LeftSideFlipJumpParams:
     IsVerticalJump: 1
@@ -1139,7 +1223,9 @@ MonoBehaviour:
     JumpAxes:
       Y: {x: 0, y: 1, z: 0}
       X: {x: 1, y: 0, z: 0}
-    JumpMode: 2
+    JumpModes:
+      Y: 2
+      X: 2
     JumpType: 8
   MinSecondJumpDelay: 0.1
   MaxSecondJumpDelay: 0.75

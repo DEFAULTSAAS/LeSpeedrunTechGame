@@ -4,6 +4,16 @@ using UnityEngine;
 public class PlayerColAnimManager : MonoBehaviour
 {
     public CapsuleCollider MainPlayerCollider;
+    public Quaternion PlayerFaceDirRot {
+        get
+        {
+            return transform.rotation;
+        } 
+        set 
+        {
+            transform.rotation = value;    
+        }
+    }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()

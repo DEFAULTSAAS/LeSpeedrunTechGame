@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [Serializable]
-public enum JumpModes
+public enum JumpMethods
 {
     None,
     Acceleration,
@@ -54,7 +54,7 @@ public class JumpParams
     
     public JumpParamsTuple<AnimationCurve> JumpCurves;
     public JumpParamsTuple<Vector3> JumpAxes = new(Vector3.up, Vector3.right);
-    public JumpModes JumpMode;
+    public JumpParamsTuple<JumpMethods> JumpModes;
     public JumpTypes JumpType;
     
     public void AdjustJumpCurve()
@@ -80,7 +80,7 @@ public class JumpParams
 
 public struct JumpDurationParams
 {
-    public JumpModes JumpMode {get; private set;}
+    public JumpParamsTuple<JumpMethods> JumpModes {get; private set;}
     public JumpTypes JumpType {get; private set;}
 
     public float CurrVertJumpTime {get; private set;}
@@ -90,7 +90,7 @@ public struct JumpDurationParams
 
     public void FromJumpParams(JumpParams inJumpParams)
     {
-        JumpMode = inJumpParams.JumpMode;
+        JumpModes = inJumpParams.JumpModes;
         JumpType = inJumpParams.JumpType;
 
         CurrVertJumpTime = 0.0f;
@@ -125,7 +125,7 @@ public struct JumpDurationParams
 
     public void Reset()
     {
-        JumpMode = JumpModes.None;
+        JumpModes = new(JumpMethods.None, JumpMethods.None);
         JumpType = JumpTypes.None;
 
         CurrVertJumpTime = float.PositiveInfinity;
@@ -140,6 +140,9 @@ public class JumpManager
 {
     public Vector2 PrevVel = new();
     public JumpDurationParams CurrJump = new();
+
+    public Vector3 ChosenYAxis;
+    public Vector3 ChosenXAxis;
 
     public bool StartJump(JumpParams inJumpParams)
     {
@@ -156,11 +159,11 @@ public class JumpManager
     public void StopJump(Rigidbody inRigidbody)
     {
         CurrJump.Reset();
-        if (inRigidbody != null && CurrJump.JumpMode == JumpModes.HeightDelta)
-        {
-            inRigidbody.AddForce(Vector3.up * -PrevVel.y, ForceMode.VelocityChange);
-            inRigidbody.AddForce(inRigidbody.transform.right * -PrevVel.x, ForceMode.VelocityChange);   
-        }
+        if (inRigidbody != null && CurrJump.JumpModes.Y == JumpMethods.HeightDelta)
+            inRigidbody.AddForce(ChosenYAxis * -PrevVel.y, ForceMode.VelocityChange);
+        
+        if (inRigidbody != null && CurrJump.JumpModes.X == JumpMethods.HeightDelta)
+            inRigidbody.AddForce(ChosenXAxis * -PrevVel.x, ForceMode.VelocityChange);   
     }
 }
 
@@ -175,9 +178,11 @@ public class PlayerController : MonoBehaviour
     public float DirChangeRate = 2.0f;
     // How much the current horizontal velocity effects how quickly the player direction is changed.
     public float DirChangeRateVelFactor = 1.0f;
+    public float DirChangeRateStrafingFactor = 10.0f;
 
     public JumpParams FirstJumpParams;
     public JumpParams SecondJumpParams;
+    public JumpParams LongJumpJumpParams;
     public JumpParams BackflipJumpParams;
     public JumpParams LeftSideFlipJumpParams;
 
@@ -192,6 +197,7 @@ public class PlayerController : MonoBehaviour
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
     private InputAction _crouchInputAction;
+    private InputAction _strafeInputAction;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -199,12 +205,15 @@ public class PlayerController : MonoBehaviour
     private Rigidbody _rigidbody;
     private Vector2 _moveInputAcc;
 
+    private Quaternion _playerFaceDirRot;
+
     private Vector3 _playerMoveDir;
     private Vector3 _playerLookDir;
     private Vector3 _playerLookDirXZ;
     private Vector3 _playerInputDir;
     private Vector3 _desiredMoveDir;
     private Vector3 _momentumDir;
+    private Vector3 _prevTargetVelXZNorm = Vector3.forward;
     
     private float _momentumMag;
     private float _onGroundSphereCastDist;
@@ -214,6 +223,7 @@ public class PlayerController : MonoBehaviour
     private bool _isFirstJumpUpdate = false;
     private bool _isOnGround = false;
     private bool _isInGroundSnapRange = false;
+    private bool _isStrafing = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -240,6 +250,7 @@ public class PlayerController : MonoBehaviour
         _moveInputAction = InputSystem.actions.FindAction("Move");
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
         _crouchInputAction = InputSystem.actions.FindAction("Crouch");
+        _strafeInputAction = InputSystem.actions.FindAction("Sprint");
         
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
@@ -251,8 +262,12 @@ public class PlayerController : MonoBehaviour
         _crouchInputAction.performed += _PIS.HandleInputCallback;
         _crouchInputAction.canceled += _PIS.HandleInputCallback;
 
+        _strafeInputAction.performed += _PIS.HandleInputCallback;
+        _strafeInputAction.canceled += _PIS.HandleInputCallback;
+
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
+        LongJumpJumpParams.AdjustJumpCurve();
         BackflipJumpParams.AdjustJumpCurve();
         LeftSideFlipJumpParams.AdjustJumpCurve();
         //Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
@@ -274,6 +289,7 @@ public class PlayerController : MonoBehaviour
             {
                 switch (_PIS.GetPlayerAction(0))
                 {
+                    case PlayerActions.LongJump: _currJumpParams = LongJumpJumpParams; break;
                     case PlayerActions.Backflip: _currJumpParams = BackflipJumpParams; break;
                     case PlayerActions.LeftSide: _currJumpParams = LeftSideFlipJumpParams; break;
                     default: _currJumpParams = FirstJumpParams; break;
@@ -314,6 +330,8 @@ public class PlayerController : MonoBehaviour
                                          _playerRaycastMask, 
                                          QueryTriggerInteraction.Ignore);
         
+        _isStrafing = _isOnGround && _PIS.GetPlayerInputActionTypes().Contains(PlayerInputActionTypes.Strafing);
+        
         RaycastHit groundSnapRange;
         _isInGroundSnapRange = Physics.SphereCast(transform.position, 
                                                   PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
@@ -345,7 +363,7 @@ public class PlayerController : MonoBehaviour
 
         Vector3 dirDiff = _desiredMoveDir - _playerMoveDir;
         float dirDiffMag = dirDiff.magnitude; 
-        float dirChangeMag = DirChangeRate * dt;
+        float dirChangeMag = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f) * dt;
         
         dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
         _playerMoveDir += dirDiff.normalized * dirChangeMag;
@@ -359,20 +377,25 @@ public class PlayerController : MonoBehaviour
             (_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && _currJumpParams.AllowsMidAirControl))
             _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
 
-        Vector3 chosenYAxis = _currJumpParams.JumpAxes.Y;
-        Vector3 chosenXAxis = _currJumpParams.JumpAxes.X;
+        _prevTargetVelXZNorm = (targetVelXZ.sqrMagnitude > 0.001f) ? targetVelXZ.normalized : _prevTargetVelXZNorm;
+        _playerFaceDirRot = Quaternion.FromToRotation(Vector3.forward, _prevTargetVelXZNorm);
+        _playerFaceDirRot = _isStrafing ? cameraYRot : _playerFaceDirRot;
+        PCAM.PlayerFaceDirRot = _playerFaceDirRot;
+
+        _jumpManager.ChosenYAxis = _currJumpParams.JumpAxes.Y;
+        _jumpManager.ChosenXAxis = _currJumpParams.JumpAxes.X;
 
         if (_currJumpParams.UseLocalAxes.Y)
         {
-            chosenYAxis = (transform.forward * _currJumpParams.JumpAxes.Y.z) + 
-                          (transform.right * _currJumpParams.JumpAxes.Y.x) + 
-                          (transform.up * _currJumpParams.JumpAxes.Y.y); 
+            _jumpManager.ChosenYAxis = (PCAM.transform.forward * _currJumpParams.JumpAxes.Y.z) + 
+                                       (PCAM.transform.right * _currJumpParams.JumpAxes.Y.x) + 
+                                       (PCAM.transform.up * _currJumpParams.JumpAxes.Y.y); 
         }
         if (_currJumpParams.UseLocalAxes.X)
         {
-            chosenXAxis = (transform.forward * _currJumpParams.JumpAxes.X.z) + 
-                          (transform.right * _currJumpParams.JumpAxes.X.x) + 
-                          (transform.up * _currJumpParams.JumpAxes.X.y);
+            _jumpManager.ChosenXAxis = (PCAM.transform.forward * _currJumpParams.JumpAxes.X.z) + 
+                                       (PCAM.transform.right * _currJumpParams.JumpAxes.X.x) + 
+                                       (PCAM.transform.up * _currJumpParams.JumpAxes.X.y);
         }
 
         _moveInputAcc = Vector2.zero;
@@ -393,12 +416,12 @@ public class PlayerController : MonoBehaviour
             // We need to take gravity into account, to ensure the jump height curve is followed properly.
             // This is due to the jump height curve not taking gravity into account itself.
 
-            if (_currJumpParams.JumpMode == JumpModes.Acceleration)
-                _rigidbody.AddForce(chosenYAxis * acceleration, ForceMode.Acceleration);
+            if (_currJumpParams.JumpModes.Y == JumpMethods.Acceleration)
+                _rigidbody.AddForce(_jumpManager.ChosenYAxis * acceleration, ForceMode.Acceleration);
             else
             {
-                _rigidbody.AddForce(chosenYAxis * (velocity - (gravity * dt)), ForceMode.VelocityChange);
-                _rigidbody.AddForce(chosenYAxis * -_jumpManager.PrevVel.y, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(_jumpManager.ChosenYAxis * (velocity - (gravity * dt)), ForceMode.VelocityChange);
+                _rigidbody.AddForce(_jumpManager.ChosenYAxis * -_jumpManager.PrevVel.y, ForceMode.VelocityChange);   
             }
             
             _jumpManager.PrevVel.y = velocity;
@@ -414,17 +437,17 @@ public class PlayerController : MonoBehaviour
             _isOnGround = _currJumpParams.IsHorizontalJump;
             _isFirstJumpUpdate = _currJumpParams.IsHorizontalJump;
             
-            if (_currJumpParams.JumpMode == JumpModes.Acceleration)
+            if (_currJumpParams.JumpModes.Y == JumpMethods.Acceleration)
             {
                 float adjustedDT = dt / _currJumpParams.VerticalJumpDuration;
                 float firstCurveHeight = CalcCurveVelocity(_currJumpParams.JumpCurves.Y, 0.0f, adjustedDT) * _currJumpParams.JumpHeight;
                 float speed = firstCurveHeight / _currJumpParams.VerticalJumpDuration;
                 
-                speed -= Vector3.Project(Vector3.one * _rigidbody.linearVelocity.y, chosenYAxis).magnitude;
+                speed -= Vector3.Project(Vector3.one * _rigidbody.linearVelocity.y, _jumpManager.ChosenYAxis).magnitude;
                 speed = (speed < 0.0f) ? 0.0f : speed;
 
                 speed += Physics.gravity.y * dt;
-                _rigidbody.AddForce(chosenYAxis * speed, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(_jumpManager.ChosenYAxis * speed, ForceMode.VelocityChange);
             }
         }
 
@@ -442,12 +465,12 @@ public class PlayerController : MonoBehaviour
             // We need to take gravity into account, to ensure the jump height curve is followed properly.
             // This is due to the jump height curve not taking gravity into account itself.
 
-            if (_currJumpParams.JumpMode == JumpModes.Acceleration)
-                _rigidbody.AddForce(chosenXAxis * acceleration, ForceMode.Acceleration);
+            if (_currJumpParams.JumpModes.X == JumpMethods.Acceleration)
+                _rigidbody.AddForce(_jumpManager.ChosenXAxis * acceleration, ForceMode.Acceleration);
             else
             {
-                _rigidbody.AddForce(chosenXAxis * velocity, ForceMode.VelocityChange);
-                _rigidbody.AddForce(chosenXAxis * -_jumpManager.PrevVel.x, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(_jumpManager.ChosenXAxis * velocity, ForceMode.VelocityChange);
+                _rigidbody.AddForce(_jumpManager.ChosenXAxis * -_jumpManager.PrevVel.x, ForceMode.VelocityChange);   
             }
             
             _jumpManager.PrevVel.x = velocity;
@@ -461,15 +484,15 @@ public class PlayerController : MonoBehaviour
             _isOnGround = false;
             _isFirstJumpUpdate = false;
 
-            if (_currJumpParams.JumpMode == JumpModes.Acceleration)
+            if (_currJumpParams.JumpModes.X == JumpMethods.Acceleration)
             {
                 float adjustedDT = dt / _currJumpParams.HorizontalJumpDuration;
                 float firstCurveWidth = CalcCurveVelocity(_currJumpParams.JumpCurves.X, 0.0f, adjustedDT) * _currJumpParams.JumpWidth;
                 float speed = firstCurveWidth / _currJumpParams.HorizontalJumpDuration;
                 
-                speed -= Vector3.Project(_rigidbody.linearVelocity, chosenXAxis).magnitude;
+                speed -= Vector3.Project(_rigidbody.linearVelocity, _jumpManager.ChosenXAxis).magnitude;
                 speed = (speed < 0.0f) ? 0.0f : speed;
-                _rigidbody.AddForce(chosenXAxis * speed, ForceMode.VelocityChange);   
+                _rigidbody.AddForce(_jumpManager.ChosenXAxis * speed, ForceMode.VelocityChange);   
             }
         }
     }
