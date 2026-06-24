@@ -96,16 +96,9 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Jump, 
                                                    PlayerInputActionTypes.Crouch}, 
                                                    (states) => {
-            if (_inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)].AxisValue.y > 0.0f)
+            InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
+            if (state.AxisValue.x != 0.0f || state.AxisValue.y != 0.0f)
                 return PlayerActions.LongJump;
-            return PlayerActions.None;                                           
-        }));
-        _inputActionsToPlayerAction.Add(new(new []{PlayerInputActionTypes.Move, 
-                                                   PlayerInputActionTypes.Jump, 
-                                                   PlayerInputActionTypes.Crouch}, 
-                                                   (states) => {
-            if (_inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)].AxisValue.y < 0.0f)
-                return PlayerActions.Backflip;
             return PlayerActions.None;                                           
         }));
         _inputActionsToPlayerAction.Add(new(new []{PlayerInputActionTypes.Move, 
@@ -121,7 +114,8 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y == 0.0f)
+            if (state.AxisValue.x < 0.0f && state.AxisValue.y == 0.0f && 
+               (Time.time - _currActionsTriggerTime[PlayerInputActionTypes.Move]) < 0.2f)
                 return PlayerActions.LeftSide;
             return PlayerActions.None;                                       
         }));
@@ -139,7 +133,8 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y == 0.0f)
+            if (state.AxisValue.x > 0.0f && state.AxisValue.y == 0.0f && 
+               (Time.time - _currActionsTriggerTime[PlayerInputActionTypes.Move]) < 0.2f)
                 return PlayerActions.RightSide;
             return PlayerActions.None;                                       
         }));
