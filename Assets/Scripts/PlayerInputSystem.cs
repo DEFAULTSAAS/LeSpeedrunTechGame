@@ -197,6 +197,12 @@ public class PlayerInputSystem : MonoBehaviour
         
     }
 
+    public bool GetIfInputPresent(PlayerInputActionTypes inInput)
+    {
+        int index = _playerInputActionTypes.BinarySearch(inInput);
+        return index >= 0;
+    }
+
     public ref readonly List<PlayerInputActionTypes> GetPlayerInputActionTypes()
     {
         return ref _playerInputActionTypes;
@@ -237,7 +243,7 @@ public class PlayerInputSystem : MonoBehaviour
             int counter = 0;
             for (int i = 0; i < dualAction.Item1.Length; i++)
             {
-                if (dualAction.Item1[i] == _playerInputActionTypes[i])
+                if (GetIfInputPresent(dualAction.Item1[i]))
                     counter++;
             }
 

@@ -757,10 +757,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
+    MaxChainJumps: 2
     JumpHeight: 1
     JumpWidth: 0
     VerticalJumpDuration: 0.5
     HorizontalJumpDuration: 0
+    MinChainJumpDelay: 0.1
+    MaxChainJumpDelay: 0.9
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -862,10 +865,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
+    MaxChainJumps: 1
     JumpHeight: 0.75
     JumpWidth: 0
     VerticalJumpDuration: 0.5
     HorizontalJumpDuration: 0
+    MinChainJumpDelay: Infinity
+    MaxChainJumpDelay: 0
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -967,10 +973,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
+    MaxChainJumps: 1
     JumpHeight: 1
-    JumpWidth: 10
+    JumpWidth: 5
     VerticalJumpDuration: 1
-    HorizontalJumpDuration: 1
+    HorizontalJumpDuration: 1.1
+    MinChainJumpDelay: Infinity
+    MaxChainJumpDelay: 0
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -1011,18 +1020,18 @@ MonoBehaviour:
         - serializedVersion: 3
           time: 0
           value: 0
-          inSlope: 1
-          outSlope: 1
-          tangentMode: 34
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
           time: 1
           value: 1
-          inSlope: 1
-          outSlope: 1
-          tangentMode: 34
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
@@ -1045,10 +1054,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
+    MaxChainJumps: 1
     JumpHeight: 1.5
     JumpWidth: 0
     VerticalJumpDuration: 1
     HorizontalJumpDuration: 0
+    MinChainJumpDelay: Infinity
+    MaxChainJumpDelay: 0
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -1159,10 +1171,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
+    MaxChainJumps: 2
     JumpHeight: 1.5
     JumpWidth: 1
     VerticalJumpDuration: 1
     HorizontalJumpDuration: 1
+    MinChainJumpDelay: 0.4
+    MaxChainJumpDelay: 0.9
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -1228,11 +1243,111 @@ MonoBehaviour:
       Y: 2
       X: 2
     JumpType: 8
+  SlamJumpParams:
+    IsVerticalJump: 1
+    IsHorizontalJump: 0
+    AllowsMidAirControl: 0
+    UseLocalAxes:
+      Y: 0
+      X: 1
+    IncludeGravityOnDecent: 0
+    HittingGroundCancelsJump: 1
+    MaxChainJumps: 1
+    JumpHeight: 1
+    JumpWidth: 0
+    VerticalJumpDuration: 0.5
+    HorizontalJumpDuration: 0
+    MinChainJumpDelay: Infinity
+    MaxChainJumpDelay: 0
+    JumpCurves:
+      Y:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.30167302
+          value: 1.0025648
+          inSlope: -0.01689242
+          outSlope: -0.01689242
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.22523321
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.3528243
+          value: 1.0025914
+          inSlope: -0.022034435
+          outSlope: -0.022034435
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.418182
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.5258603
+          value: 0.7015251
+          inSlope: -3.9155076
+          outSlope: -3.9155076
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.061635017
+        - serializedVersion: 3
+          time: 1.0005915
+          value: -1.0070266
+          inSlope: -2.032064
+          outSlope: -2.032064
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0.12026854
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      X:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    JumpAxes:
+      Y: {x: 0, y: 1, z: 0}
+      X: {x: 1, y: 0, z: 0}
+    JumpModes:
+      Y: 2
+      X: 2
+    JumpType: 32
   MinSecondJumpDelay: 0.1
   MaxSecondJumpDelay: 0.75
   OnGroundRadiusReduction: 0.1
+  OnGroundDistanceIncrease: 0.025
   GroundSnapDistance: 0.6
-  GroundSnapSpeed: 20
+  GroundSnapSpeed: 10
 --- !u!1 &634871910
 GameObject:
   m_ObjectHideFlags: 0

@@ -47,10 +47,14 @@ public class JumpParams
     public bool IncludeGravityOnDecent = false;
     public bool HittingGroundCancelsJump = true;
     
+    public int MaxChainJumps = 1;
+    
     public float JumpHeight;
     public float JumpWidth;
     public float VerticalJumpDuration;
     public float HorizontalJumpDuration;
+    public float MinChainJumpDelay = float.PositiveInfinity; // Amount of time that must pass after the first jump.
+    public float MaxChainJumpDelay = 0.0f;
     
     public JumpParamsTuple<AnimationCurve> JumpCurves;
     public JumpParamsTuple<Vector3> JumpAxes = new(Vector3.up, Vector3.right);
@@ -88,6 +92,12 @@ public struct JumpDurationParams
     public JumpParamsTuple<JumpMethods> JumpModes {get; private set;}
     public JumpTypes JumpType {get; private set;}
 
+    public int MaxChainJumps {get; private set;}
+    public int NumJumps;
+
+    public float MinChainJumpDelay {get; private set;}
+    public float MaxChainJumpDelay {get; private set;}
+
     public float CurrVertJumpTime {get; private set;}
     public float RemainingVertJumpTime {get; private set;}
     public float CurrHoriJumpTime {get; private set;}
@@ -97,6 +107,10 @@ public struct JumpDurationParams
     {
         JumpModes = inJumpParams.JumpModes;
         JumpType = inJumpParams.JumpType;
+
+        MaxChainJumps = inJumpParams.MaxChainJumps;
+        MinChainJumpDelay = inJumpParams.MinChainJumpDelay;
+        MaxChainJumpDelay = inJumpParams.MaxChainJumpDelay;
 
         CurrVertJumpTime = 0.0f;
         RemainingVertJumpTime = inJumpParams.VerticalJumpDuration;
@@ -132,6 +146,12 @@ public struct JumpDurationParams
     {
         JumpModes = new(JumpMethods.None, JumpMethods.None);
         JumpType = JumpTypes.None;
+        
+        MaxChainJumps = 0;
+        NumJumps = 0;
+
+        MinChainJumpDelay = float.PositiveInfinity;
+        MaxChainJumpDelay = 0.0f;
 
         CurrVertJumpTime = float.PositiveInfinity;
         RemainingVertJumpTime = 0.0f;
@@ -149,12 +169,22 @@ public class JumpManager
     public Vector3 ChosenYAxis;
     public Vector3 ChosenXAxis;
 
+    public int NumJumps { get; private set; }
+
     public bool StartJump(JumpParams inJumpParams)
     {
         if (CurrJump.JumpType == JumpTypes.None || 
-           (CurrJump.JumpType != inJumpParams.JumpType && (CurrJump.JumpType & inJumpParams.JumpType) > 0))
+           (CurrJump.JumpType != inJumpParams.JumpType && 
+           (CurrJump.JumpType & inJumpParams.JumpType) > 0 &&
+           (CurrJump.NumJumps == 0 || 
+           (CurrJump.NumJumps < CurrJump.MaxChainJumps && 
+           CurrJump.GetJumpTime() >= CurrJump.MinChainJumpDelay && 
+           CurrJump.GetJumpTime() <= CurrJump.MaxChainJumpDelay))))
         {
             CurrJump.FromJumpParams(inJumpParams);
+            NumJumps++;
+            
+            CurrJump.NumJumps = NumJumps;
             return true;
         }
 
@@ -169,6 +199,11 @@ public class JumpManager
         
         if (inRigidbody != null && CurrJump.JumpModes.X == JumpMethods.HeightDelta)
             inRigidbody.AddForce(ChosenXAxis * -PrevVel.x, ForceMode.VelocityChange);   
+    }
+
+    public void ResetNumJumps()
+    {
+        NumJumps = 0;
     }
 }
 
@@ -190,12 +225,14 @@ public class PlayerController : MonoBehaviour
     public JumpParams LongJumpJumpParams;
     public JumpParams BackflipJumpParams;
     public JumpParams LeftSideFlipJumpParams;
+    public JumpParams SlamJumpParams;
 
     
-    public float MinSecondJumpDelay = 0.1f; // Amount of time that must pass after the first jump.
+    public float MinSecondJumpDelay = 0.1f; 
     public float MaxSecondJumpDelay = 0.6f;
 
     public float OnGroundRadiusReduction = 0.01f;
+    public float OnGroundDistanceIncrease = 0.025f;
     public float GroundSnapDistance = 0.05f;
     public float GroundSnapSpeed = 10.0f;
 
@@ -207,6 +244,7 @@ public class PlayerController : MonoBehaviour
 
     private JumpManager _jumpManager = new();
     private JumpParams _currJumpParams = new();
+    private JumpParams _nextJumpParams = new();
     private Rigidbody _rigidbody;
     private Vector2 _moveInputAcc;
 
@@ -245,7 +283,8 @@ public class PlayerController : MonoBehaviour
         
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
-        _onGroundSphereCastDist += 0.01f;
+        _onGroundSphereCastDist += OnGroundDistanceIncrease; 
+        // Little bit of leeway meaning the player is just slightly above the ground when the game thinks they're on the ground.
 
         _rigidbody = GetComponent<Rigidbody>();
         if (!_rigidbody)
@@ -287,63 +326,8 @@ public class PlayerController : MonoBehaviour
         _moveInputAcc += moveInput;
 
         _PIS.ProcessInputActionStates();
-
-        if (_PIS.GetPlayerInputActionTypes().Contains(PlayerInputActionTypes.Jump))
-        {
-            bool jumpTriggered = false;
-            if (_isOnGround && _jumpManager.CurrJump.GetRemainingJumpTime() == 0.0f)
-            {
-                switch (_PIS.GetPlayerAction(0))
-                {
-                    case PlayerActions.LongJump: _currJumpParams = LongJumpJumpParams; break;
-                    case PlayerActions.Backflip: _currJumpParams = BackflipJumpParams; break;
-                    case PlayerActions.ForwardLeftSide:
-                    {
-                        LeftSideFlipJumpParams.JumpAxes.X.x = -0.707f;
-                        LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
-                        _currJumpParams = LeftSideFlipJumpParams.ShallowCopy();
-                        _currJumpParams.JumpWidth *= 1.414f;
-                    } break;
-                    case PlayerActions.LeftSide:
-                    {
-                        LeftSideFlipJumpParams.JumpAxes.X.x = -1.0f;
-                        LeftSideFlipJumpParams.JumpAxes.X.y = 0.0f; 
-                        _currJumpParams = LeftSideFlipJumpParams; 
-                    } break;
-                    case PlayerActions.ForwardRightSide:
-                    {
-                        LeftSideFlipJumpParams.JumpAxes.X.x = 0.707f;
-                        LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
-                        _currJumpParams = LeftSideFlipJumpParams.ShallowCopy();
-                        _currJumpParams.JumpWidth *= 1.414f;
-                    } break;
-                    case PlayerActions.RightSide:
-                    {
-                        LeftSideFlipJumpParams.JumpAxes.X.x = 1.0f;
-                        LeftSideFlipJumpParams.JumpAxes.X.y = 0.0f; 
-                        _currJumpParams = LeftSideFlipJumpParams;
-                    } break;
-                    default: _currJumpParams = FirstJumpParams; break;
-                }
-                jumpTriggered = _jumpManager.StartJump(_currJumpParams);
-            }
-            else if (_currJumpParams != SecondJumpParams && 
-                     _jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && 
-                     _jumpManager.CurrJump.GetJumpTime() > MinSecondJumpDelay && 
-                     _jumpManager.CurrJump.GetJumpTime() < MaxSecondJumpDelay)
-            {
-                jumpTriggered = _jumpManager.StartJump(SecondJumpParams);
-                _currJumpParams = jumpTriggered ? SecondJumpParams : _currJumpParams;
-            }
-
-            if (jumpTriggered)
-            {
-                _isFirstJumpUpdate = true;   
-            }
-        }
     }
 
-    int _frameSinceJumpStopped = 0;
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
@@ -353,7 +337,7 @@ public class PlayerController : MonoBehaviour
         _isOnGround = Physics.SphereCast(transform.position, 
                                          PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
                                          -Vector3.up, 
-                                         out RaycastHit hit, 
+                                         out RaycastHit _, 
                                          _onGroundSphereCastDist, 
                                          _playerRaycastMask, 
                                          QueryTriggerInteraction.Ignore);
@@ -361,15 +345,78 @@ public class PlayerController : MonoBehaviour
         if (_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f)
         {
             _jumpManager.StopJump(_rigidbody);
-            _frameSinceJumpStopped++;
+            _jumpManager.ResetNumJumps();
         }
-        _isStrafing = _isOnGround && _PIS.GetPlayerInputActionTypes().Contains(PlayerInputActionTypes.Strafing);
+        else if (_jumpManager.CurrJump.GetRemainingJumpTime() < 0.0f)
+            _jumpManager.StopJump(_rigidbody);    
         
-        RaycastHit groundSnapRange;
+        if (_isOnGround && _jumpManager.CurrJump.GetJumpTime() <= 0.0f)
+            _jumpManager.ResetNumJumps();
+
+        _isStrafing = _isOnGround && _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing);
+        
+        if (_PIS.GetPlayerInputActionTypes().Count > 0)
+        {
+            bool jumpTriggered = false;
+            bool noJumpInput = false;
+
+            if (_isOnGround || (!_isOnGround && _jumpManager.CurrJump.NumJumps > 0))
+            {
+                switch (_PIS.GetPlayerAction(0))
+                {
+                    case PlayerActions.LongJump: _nextJumpParams = LongJumpJumpParams; break;
+                    case PlayerActions.Backflip: _nextJumpParams = BackflipJumpParams; break;
+                    case PlayerActions.ForwardLeftSide:
+                    {
+                        LeftSideFlipJumpParams.JumpAxes.X.x = -0.707f;
+                        LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
+                        _nextJumpParams = LeftSideFlipJumpParams.ShallowCopy();
+                        _nextJumpParams.JumpWidth *= 1.414f;
+                    } break;
+                    case PlayerActions.LeftSide:
+                    {
+                        LeftSideFlipJumpParams.JumpAxes.X.x = -1.0f;
+                        LeftSideFlipJumpParams.JumpAxes.X.y = 0.0f; 
+                        _nextJumpParams = LeftSideFlipJumpParams; 
+                    } break;
+                    case PlayerActions.ForwardRightSide:
+                    {
+                        LeftSideFlipJumpParams.JumpAxes.X.x = 0.707f;
+                        LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
+                        _nextJumpParams = LeftSideFlipJumpParams.ShallowCopy();
+                        _nextJumpParams.JumpWidth *= 1.414f;
+                    } break;
+                    case PlayerActions.RightSide:
+                    {
+                        LeftSideFlipJumpParams.JumpAxes.X.x = 1.0f;
+                        LeftSideFlipJumpParams.JumpAxes.X.y = 0.0f; 
+                        _nextJumpParams = LeftSideFlipJumpParams;
+                    } break;
+                    case PlayerActions.Jump:
+                    {
+                        if (_jumpManager.CurrJump.NumJumps == 0)
+                            _nextJumpParams = FirstJumpParams;
+                        else
+                        {
+                            _nextJumpParams = SecondJumpParams;   
+                        }
+                    } break;
+                    default: noJumpInput = true; break;
+                }
+
+                jumpTriggered = !noJumpInput ? _jumpManager.StartJump(_nextJumpParams) : false;
+                _currJumpParams = jumpTriggered ? _nextJumpParams : _currJumpParams;
+            }
+            if (jumpTriggered)
+            {
+                _isFirstJumpUpdate = true;
+            }
+        }
+
         _isInGroundSnapRange = Physics.SphereCast(transform.position, 
                                                   PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction, 
                                                   -Vector3.up, 
-                                                  out groundSnapRange, 
+                                                  out RaycastHit _, 
                                                   _onGroundSphereCastDist + GroundSnapDistance,
                                                   _playerRaycastMask, 
                                                   QueryTriggerInteraction.Ignore);
@@ -380,7 +427,6 @@ public class PlayerController : MonoBehaviour
 
             _rigidbody.linearVelocity = currLinVel;
         }
-        Debug.Log(_isOnGround);
 
         _playerLookDir = PlayerCamera.GetCameraOrientation() * Vector3.forward;
         _playerLookDirXZ = cameraYRot * Vector3.forward;
@@ -390,9 +436,13 @@ public class PlayerController : MonoBehaviour
         // By default the desired move dir is just the input dir, but this can change based on different actions.
 
         float currMoveSpeed = WalkMoveSpeed;
-        if (!_isOnGround && !_isFirstJumpUpdate)
+        if (!_isOnGround && !_isFirstJumpUpdate && _jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f)
         {
             currMoveSpeed *= JumpMoveSpeedFactor;
+        }
+        else if (!_isOnGround && _jumpManager.CurrJump.GetRemainingJumpTime() <= 0.0f)
+        {
+            currMoveSpeed *= InAirMoveSpeedFactor;
         }
 
         Vector3 dirDiff = _desiredMoveDir - _playerMoveDir;
@@ -410,9 +460,12 @@ public class PlayerController : MonoBehaviour
 
         if (targetVelXZ == Vector3.zero && _jumpManager.CurrJump.JumpType == JumpTypes.Double)
             targetVelXZ = currVel.normalized * currMoveSpeed;
+
         if ((_jumpManager.CurrJump.GetRemainingJumpTime() <= 0.0f) || 
             (_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && _currJumpParams.AllowsMidAirControl))
+        {
             _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
+        }
 
         if (!(_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && !_currJumpParams.AllowsMidAirControl))
         {
@@ -444,7 +497,6 @@ public class PlayerController : MonoBehaviour
         _moveInputAcc = Vector2.zero;
         if (_currJumpParams.IsVerticalJump && _jumpManager.CurrJump.RemainingVertJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
-            _frameSinceJumpStopped = 0;
             float t = _jumpManager.CurrJump.CurrVertJumpTime / _currJumpParams.VerticalJumpDuration;
             float adjustedDT = dt / _currJumpParams.VerticalJumpDuration;
             
@@ -494,7 +546,6 @@ public class PlayerController : MonoBehaviour
                 _rigidbody.AddForce(_jumpManager.ChosenYAxis * speed, ForceMode.VelocityChange);
             }
         }
-        Debug.Log(_frameSinceJumpStopped);
 
         if (_currJumpParams.IsHorizontalJump && _jumpManager.CurrJump.RemainingHoriJumpTime > 0.0f && !_isFirstJumpUpdate)
         {
