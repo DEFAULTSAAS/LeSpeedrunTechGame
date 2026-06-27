@@ -51,6 +51,7 @@ public class PlayerInputSystem : MonoBehaviour
     public string JumpInputActionName = "Jump";
     public string CrouchInputActionName = "Crouch";
     public string StrafingInputActionName = "Sprint";
+    public string SwingInputActionName = "Swing";
 
     public PlayerInputActionTypes[] PersistentInputActions = new PlayerInputActionTypes[]{PlayerInputActionTypes.Move};
 
@@ -73,6 +74,7 @@ public class PlayerInputSystem : MonoBehaviour
         _actionNameToActionType[JumpInputActionName] = PlayerInputActionTypes.Jump;
         _actionNameToActionType[CrouchInputActionName] = PlayerInputActionTypes.Crouch;
         _actionNameToActionType[StrafingInputActionName] = PlayerInputActionTypes.Strafing;
+        _actionNameToActionType[SwingInputActionName] = PlayerInputActionTypes.Swing;
 
         foreach (PlayerInputActionTypes playerInputActionType in Enum.GetValues(typeof(PlayerInputActionTypes)))
         {

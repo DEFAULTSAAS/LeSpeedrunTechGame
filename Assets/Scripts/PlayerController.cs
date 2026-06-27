@@ -1,4 +1,5 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -14,14 +15,15 @@ public enum JumpMethods
 public enum JumpTypes
 {
     None = 0,
-    Single = 35,
-    Double = 34,
-    Back = 4,
-    Side = 8,
+    Single = 1 | 32,
+    Double = 2 | 1 | 32,
+    Back = 4 | 32,
+    Side = 8 | 32,
     Long = 16,
     Slam = 32,
-    Swing = 64,
-    Bonk = 128
+    Charge = 64 | 256 | unchecked((int)0x80000000),
+    Swing = 128 | 1 | 4 | 8 | 16 | 32 | unchecked((int)0x80000000), // Make negative.
+    Bonk = 256
 }
 
 [Serializable]
@@ -164,7 +166,11 @@ public struct JumpDurationParams
 public class JumpManager
 {
     public Vector2 PrevVel = new();
+    public Vector2 ProjectedMagnitude = new();
     public JumpDurationParams CurrJump = new();
+
+    public Vector3 PrevChosenYAxis;
+    public Vector3 PrevChosenXAxis;
 
     public Vector3 ChosenYAxis;
     public Vector3 ChosenXAxis;
@@ -174,8 +180,8 @@ public class JumpManager
     public bool StartJump(JumpParams inJumpParams)
     {
         if (CurrJump.JumpType == JumpTypes.None || 
-           (CurrJump.JumpType != inJumpParams.JumpType && 
-           (CurrJump.JumpType & inJumpParams.JumpType) > 0 &&
+           ((CurrJump.JumpType != inJumpParams.JumpType || (int)CurrJump.JumpType < 0) && 
+           ((int)CurrJump.JumpType & unchecked(0x7FFFFFFF) & (int)inJumpParams.JumpType) != 0 &&
            (CurrJump.NumJumps == 0 || 
            (CurrJump.NumJumps < CurrJump.MaxChainJumps && 
            CurrJump.GetJumpTime() >= CurrJump.MinChainJumpDelay && 
@@ -194,6 +200,8 @@ public class JumpManager
     public void StopJump(Rigidbody inRigidbody)
     {
         CurrJump.Reset();
+        ProjectedMagnitude = Vector2.one * float.PositiveInfinity;
+
         if (inRigidbody != null && CurrJump.JumpModes.Y == JumpMethods.HeightDelta)
             inRigidbody.AddForce(ChosenYAxis * -PrevVel.y, ForceMode.VelocityChange);
         
@@ -215,6 +223,7 @@ public class PlayerController : MonoBehaviour
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
     public float InAirMoveSpeedFactor = 0.2f;
+    public float PlayerFaceDirRotSpeedFactor = 2.0f;
     public float DirChangeRate = 2.0f;
     // How much the current horizontal velocity effects how quickly the player direction is changed.
     public float DirChangeRateVelFactor = 1.0f;
@@ -225,6 +234,8 @@ public class PlayerController : MonoBehaviour
     public JumpParams LongJumpJumpParams;
     public JumpParams BackflipJumpParams;
     public JumpParams LeftSideFlipJumpParams;
+    public JumpParams ChargeJumpParams;
+    public JumpParams SwingJumpParams;
     public JumpParams SlamJumpParams;
 
     
@@ -240,6 +251,7 @@ public class PlayerController : MonoBehaviour
     private InputAction _jumpInputAction;
     private InputAction _crouchInputAction;
     private InputAction _strafeInputAction;
+    public InputAction _swingInputAction;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -296,6 +308,7 @@ public class PlayerController : MonoBehaviour
         _jumpInputAction = InputSystem.actions.FindAction("Jump");
         _crouchInputAction = InputSystem.actions.FindAction("Crouch");
         _strafeInputAction = InputSystem.actions.FindAction("Sprint");
+        _swingInputAction = InputSystem.actions.FindAction("Swing");
         
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
@@ -310,11 +323,17 @@ public class PlayerController : MonoBehaviour
         _strafeInputAction.performed += _PIS.HandleInputCallback;
         _strafeInputAction.canceled += _PIS.HandleInputCallback;
 
+        _swingInputAction.performed += _PIS.HandleInputCallback;
+        _swingInputAction.canceled += _PIS.HandleInputCallback;
+
         FirstJumpParams.AdjustJumpCurve();
         SecondJumpParams.AdjustJumpCurve();
         LongJumpJumpParams.AdjustJumpCurve();
         BackflipJumpParams.AdjustJumpCurve();
         LeftSideFlipJumpParams.AdjustJumpCurve();
+        ChargeJumpParams.AdjustJumpCurve();
+        SwingJumpParams.AdjustJumpCurve();
+        SlamJumpParams.AdjustJumpCurve();
         //Debug.Log(PCAM.MainPlayerCollider.radius - OnGroundRadiusReduction);
     }
 
@@ -342,19 +361,25 @@ public class PlayerController : MonoBehaviour
                                          _playerRaycastMask, 
                                          QueryTriggerInteraction.Ignore);
         
+        bool fakeIsOnGround = false;
         if (_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f)
         {
             _jumpManager.StopJump(_rigidbody);
             _jumpManager.ResetNumJumps();
         }
         else if (_jumpManager.CurrJump.GetRemainingJumpTime() < 0.0f)
-            _jumpManager.StopJump(_rigidbody);    
+        {
+            if (_jumpManager.CurrJump.JumpType == JumpTypes.Charge)
+                fakeIsOnGround = true;
+            _jumpManager.StopJump(_rigidbody);   
+        }   
         
         if (_isOnGround && _jumpManager.CurrJump.GetJumpTime() <= 0.0f)
             _jumpManager.ResetNumJumps();
-
-        _isStrafing = _isOnGround && _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing);
         
+        _isStrafing = _isOnGround && _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing);
+        _isOnGround = _isOnGround ? _isOnGround : fakeIsOnGround || _jumpManager.CurrJump.JumpType == JumpTypes.Swing && _jumpManager.NumJumps < 2;
+
         if (_PIS.GetPlayerInputActionTypes().Count > 0)
         {
             bool jumpTriggered = false;
@@ -392,6 +417,20 @@ public class PlayerController : MonoBehaviour
                         LeftSideFlipJumpParams.JumpAxes.X.y = 0.0f; 
                         _nextJumpParams = LeftSideFlipJumpParams;
                     } break;
+                    case PlayerActions.Charge:
+                    {
+                        _nextJumpParams = ChargeJumpParams;
+                        //_isOnGround = true;
+                    } break;
+                    case PlayerActions.Swing:
+                    {
+                        if (_isOnGround)
+                        {
+                            _nextJumpParams = SwingJumpParams;
+                        }
+                        else
+                            noJumpInput = true;
+                    } break;
                     case PlayerActions.Jump:
                     {
                         if (_jumpManager.CurrJump.NumJumps == 0)
@@ -410,6 +449,19 @@ public class PlayerController : MonoBehaviour
             if (jumpTriggered)
             {
                 _isFirstJumpUpdate = true;
+                switch (_PIS.GetPlayerAction(0))
+                {
+                    case PlayerActions.Charge:
+                    {
+                        Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                        if (currLinVel.magnitude > WalkMoveSpeed)
+                            _rigidbody.AddForce((currLinVel.normalized * WalkMoveSpeed) - currLinVel, ForceMode.VelocityChange);
+                    } break;
+                    case PlayerActions.Swing:
+                        Debug.Log("Swing!"); break;
+                    case PlayerActions.Jump:
+                        Debug.Log("Jump!"); break;
+                }
             }
         }
 
@@ -449,7 +501,7 @@ public class PlayerController : MonoBehaviour
         float dirDiffMag = dirDiff.magnitude; 
         float dirChangeMag = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f);
         
-        _playerFaceTurnRate = dirChangeMag;
+        _playerFaceTurnRate = dirChangeMag * PlayerFaceDirRotSpeedFactor;
         dirChangeMag *= dt;
 
         dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
@@ -477,7 +529,17 @@ public class PlayerController : MonoBehaviour
                                                          _playerFaceTurnRate);
             PCAM.PlayerFaceDirRot = _playerFaceDirRot;   
         }
+        if (_jumpManager.CurrJump.GetJumpTime() == 0.0f && _jumpManager.CurrJump.JumpType == JumpTypes.Swing)
+        {
+            PCAM.PlayerFaceDirRot = Quaternion.FromToRotation(PCAM.transform.forward, _desiredMoveDir) * PCAM.PlayerFaceDirRot;
+            _rigidbody.AddForce((_desiredMoveDir * currVel.magnitude) - currVel, ForceMode.VelocityChange);
+            _prevTargetVelXZNorm = _desiredMoveDir;   
+        }
 
+        #region Jumping
+        _jumpManager.PrevChosenYAxis = _jumpManager.ChosenYAxis;
+        _jumpManager.PrevChosenXAxis = _jumpManager.ChosenXAxis;
+        
         _jumpManager.ChosenYAxis = _currJumpParams.JumpAxes.Y;
         _jumpManager.ChosenXAxis = _currJumpParams.JumpAxes.X;
 
@@ -555,6 +617,9 @@ public class PlayerController : MonoBehaviour
             float acceleration = CalcCurveAcceleration(_currJumpParams.JumpCurves.X, t, adjustedDT);
             float widthDelta = CalcCurveVelocity(_currJumpParams.JumpCurves.X, t, adjustedDT);
             float velocity = widthDelta * _currJumpParams.JumpWidth / _currJumpParams.HorizontalJumpDuration; 
+            
+            float velProjMagNow = Vector3.Project(_rigidbody.linearVelocity, _jumpManager.PrevChosenXAxis).magnitude; 
+            float newVelProjMag = Vector3.Project(_rigidbody.linearVelocity, _jumpManager.ChosenXAxis).magnitude;
 
             acceleration *= _currJumpParams.JumpWidth;
             acceleration /= _currJumpParams.HorizontalJumpDuration * _currJumpParams.HorizontalJumpDuration;
@@ -565,8 +630,22 @@ public class PlayerController : MonoBehaviour
                 _rigidbody.AddForce(_jumpManager.ChosenXAxis * acceleration, ForceMode.Acceleration);
             else
             {
+                float velProjMagDiff = _jumpManager.ProjectedMagnitude.x - velProjMagNow;
+                float prevVelCompensation = -_jumpManager.PrevVel.x;
+
+                if (_jumpManager.ProjectedMagnitude.x != float.PositiveInfinity && 
+                    velProjMagDiff > 0.001f && 
+                    velProjMagNow < _jumpManager.ProjectedMagnitude.x)
+                {
+
+                    prevVelCompensation += velProjMagDiff;
+                    if (prevVelCompensation > 0.0f)
+                        prevVelCompensation = 0.0f;
+                }
                 _rigidbody.AddForce(_jumpManager.ChosenXAxis * velocity, ForceMode.VelocityChange);
-                _rigidbody.AddForce(_jumpManager.ChosenXAxis * -_jumpManager.PrevVel.x, ForceMode.VelocityChange);   
+
+                _jumpManager.ProjectedMagnitude.x = newVelProjMag + velocity + prevVelCompensation;
+                _rigidbody.AddForce(_jumpManager.ChosenXAxis * prevVelCompensation, ForceMode.VelocityChange);   
             }
             
             _jumpManager.PrevVel.x = velocity;
@@ -577,20 +656,22 @@ public class PlayerController : MonoBehaviour
             if (_isOnGround)
                 _jumpManager.PrevVel.x = 0.0f;
             
-            _isOnGround = false;
+            _isOnGround = !_currJumpParams.IsVerticalJump;
             _isFirstJumpUpdate = false;
 
+            float adjustedDT = dt / _currJumpParams.HorizontalJumpDuration;
+            float firstCurveWidth = CalcCurveVelocity(_currJumpParams.JumpCurves.X, 0.0f, adjustedDT) * _currJumpParams.JumpWidth;
+            float speed = firstCurveWidth / _currJumpParams.HorizontalJumpDuration;
+            
+            float velProjMag = Vector3.Project(_rigidbody.linearVelocity, _jumpManager.ChosenXAxis).magnitude;
+            speed -= velProjMag;
+            speed = (speed < 0.0f) ? 0.0f : speed;
+            
+            _jumpManager.ProjectedMagnitude.x = float.PositiveInfinity;
             if (_currJumpParams.JumpModes.X == JumpMethods.Acceleration)
-            {
-                float adjustedDT = dt / _currJumpParams.HorizontalJumpDuration;
-                float firstCurveWidth = CalcCurveVelocity(_currJumpParams.JumpCurves.X, 0.0f, adjustedDT) * _currJumpParams.JumpWidth;
-                float speed = firstCurveWidth / _currJumpParams.HorizontalJumpDuration;
-                
-                speed -= Vector3.Project(_rigidbody.linearVelocity, _jumpManager.ChosenXAxis).magnitude;
-                speed = (speed < 0.0f) ? 0.0f : speed;
                 _rigidbody.AddForce(_jumpManager.ChosenXAxis * speed, ForceMode.VelocityChange);   
-            }
         }
+        #endregion
     }
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)
