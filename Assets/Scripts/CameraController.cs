@@ -49,6 +49,7 @@ public struct HighOrderBezier
 public class CameraController : MonoBehaviour
 {
     public Transform Target;
+    public Transform TargetFPSPoint;
     public Transform[] VisCheckPoints;
     
     public Vector2 LookSpeedFPS = new (10.0f, 10.0f);
@@ -74,8 +75,9 @@ public class CameraController : MonoBehaviour
     public int NumSphereHitDirRings = 9;
     public int NumSphereHitDirSegments = 16;
     
+    public bool CanMove = true;
+    public bool FollowTarget = true;
     public bool EnableFreeFly;
-    public bool FollowTarget;
 
     private InputAction _moveInputAction;
     private InputAction _lookInputAction;
@@ -255,7 +257,7 @@ public class CameraController : MonoBehaviour
             UpdateFreeCamera(dt);
             return;
         }
-        if (!Target)
+        if (!Target || !FollowTarget)
             return;
 
         Vector2 lookInput = _lookInputAction.ReadValue<Vector2>() * InputAxisFactorsTPS;
@@ -541,7 +543,10 @@ public class CameraController : MonoBehaviour
         Vector3 forwardDir = transform.forward * moveInput.y + transform.right * moveInput.x;
         
         forwardDir.Normalize();
-        transform.position += forwardDir * MoveSpeed * inDeltaTime;
+        if (!FollowTarget && CanMove)
+            transform.position += forwardDir * MoveSpeed * inDeltaTime;
+        else if (FollowTarget && TargetFPSPoint)
+            transform.position = TargetFPSPoint.position;
     }
 
     // Adapted from https://github.com/godotengine/godot-proposals/issues/8906

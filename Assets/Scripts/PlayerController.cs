@@ -251,7 +251,9 @@ public class PlayerController : MonoBehaviour
     private InputAction _jumpInputAction;
     private InputAction _crouchInputAction;
     private InputAction _strafeInputAction;
-    public InputAction _swingInputAction;
+    private InputAction _swingInputAction;
+    private InputAction _attackInputAction;
+    private InputAction _aimInputAction;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -309,7 +311,9 @@ public class PlayerController : MonoBehaviour
         _crouchInputAction = InputSystem.actions.FindAction("Crouch");
         _strafeInputAction = InputSystem.actions.FindAction("Sprint");
         _swingInputAction = InputSystem.actions.FindAction("Swing");
-        
+        _attackInputAction = InputSystem.actions.FindAction("Attack");
+        _aimInputAction = InputSystem.actions.FindAction("Aim");
+
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
         _moveInputAction.canceled += _PIS.HandleInputCallback;
@@ -347,6 +351,7 @@ public class PlayerController : MonoBehaviour
         _PIS.ProcessInputActionStates();
     }
 
+    private float _currDirChangeMag = 1.0f;
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
@@ -362,7 +367,9 @@ public class PlayerController : MonoBehaviour
                                          QueryTriggerInteraction.Ignore);
         
         bool fakeIsOnGround = false;
-        if (_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f)
+        bool stopCharge = _jumpManager.CurrJump.JumpType == JumpTypes.Charge && _attackInputAction.WasPressedThisFrame();
+        
+        if ((_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f) || stopCharge)
         {
             _jumpManager.StopJump(_rigidbody);
             _jumpManager.ResetNumJumps();
@@ -499,13 +506,16 @@ public class PlayerController : MonoBehaviour
 
         Vector3 dirDiff = _desiredMoveDir - _playerMoveDir;
         float dirDiffMag = dirDiff.magnitude; 
-        float dirChangeMag = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f);
         
-        _playerFaceTurnRate = dirChangeMag * PlayerFaceDirRotSpeedFactor;
-        dirChangeMag *= dt;
+        if (_PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Move) >= 0 && 
+            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Jump) < 0)
+            _currDirChangeMag = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f);
+        
+        _playerFaceTurnRate = _currDirChangeMag * PlayerFaceDirRotSpeedFactor;
+        _currDirChangeMag *= dt;
 
-        dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
-        _playerMoveDir += dirDiff.normalized * dirChangeMag;
+        _currDirChangeMag = (_currDirChangeMag > dirDiffMag) ? dirDiffMag : _currDirChangeMag;
+        _playerMoveDir += dirDiff.normalized * _currDirChangeMag;
 
         Vector3 targetVelXZ = _playerMoveDir * currMoveSpeed;
         Vector3 currVel = _rigidbody.linearVelocity; currVel.y = 0.0f;

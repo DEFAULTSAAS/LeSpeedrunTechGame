@@ -2404,6 +2404,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
   Target: {fileID: 559890492}
+  TargetFPSPoint: {fileID: 155393900}
   VisCheckPoints:
   - {fileID: 417346705}
   - {fileID: 155393900}
@@ -2433,8 +2434,9 @@ MonoBehaviour:
   GapCamResetTime: 1
   NumSphereHitDirRings: 16
   NumSphereHitDirSegments: 32
+  CanMove: 1
+  FollowTarget: 1
   EnableFreeFly: 0
-  FollowTarget: 0
 --- !u!114 &822436756
 MonoBehaviour:
   m_ObjectHideFlags: 0
