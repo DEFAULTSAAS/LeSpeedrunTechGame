@@ -197,15 +197,15 @@ public class JumpManager
         return false;
     }
 
-    public void StopJump(Rigidbody inRigidbody)
+    public void StopJump(Rigidbody inRigidbody, bool inKeepPrevYVel = false, bool inKeepPrevXVel = false)
     {
         CurrJump.Reset();
         ProjectedMagnitude = Vector2.one * float.PositiveInfinity;
 
-        if (inRigidbody != null && CurrJump.JumpModes.Y == JumpMethods.HeightDelta)
+        if (inRigidbody != null && CurrJump.JumpModes.Y == JumpMethods.HeightDelta && !inKeepPrevYVel)
             inRigidbody.AddForce(ChosenYAxis * -PrevVel.y, ForceMode.VelocityChange);
         
-        if (inRigidbody != null && CurrJump.JumpModes.X == JumpMethods.HeightDelta)
+        if (inRigidbody != null && CurrJump.JumpModes.X == JumpMethods.HeightDelta && !inKeepPrevXVel)
             inRigidbody.AddForce(ChosenXAxis * -PrevVel.x, ForceMode.VelocityChange);   
     }
 
@@ -228,6 +228,8 @@ public class PlayerController : MonoBehaviour
     // How much the current horizontal velocity effects how quickly the player direction is changed.
     public float DirChangeRateVelFactor = 1.0f;
     public float DirChangeRateStrafingFactor = 10.0f;
+    public float DirChangeRateSlidingFactor = 0.05f;
+    public float DirChangeRateInAirFactor = 0.2f;
 
     public JumpParams FirstJumpParams;
     public JumpParams SecondJumpParams;
@@ -238,10 +240,7 @@ public class PlayerController : MonoBehaviour
     public JumpParams SwingJumpParams;
     public JumpParams SlamJumpParams;
 
-    
-    public float MinSecondJumpDelay = 0.1f; 
-    public float MaxSecondJumpDelay = 0.6f;
-
+    public float FarOffGroundDistance = 2.0f;
     public float OnGroundRadiusReduction = 0.01f;
     public float OnGroundDistanceIncrease = 0.025f;
     public float GroundSnapDistance = 0.05f;
@@ -275,6 +274,7 @@ public class PlayerController : MonoBehaviour
     private float _playerFaceTurnRate;
     private float _momentumMag;
     private float _onGroundSphereCastDist;
+    private float _farOffGroundCastDist;
 
     private int _playerRaycastMask = 0;
 
@@ -296,6 +296,7 @@ public class PlayerController : MonoBehaviour
         }
         
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
+        _farOffGroundCastDist = (PCAM.MainPlayerCollider.height / 2.0f) + FarOffGroundDistance;
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
         _onGroundSphereCastDist += OnGroundDistanceIncrease; 
         // Little bit of leeway meaning the player is just slightly above the ground when the game thinks they're on the ground.
@@ -351,7 +352,8 @@ public class PlayerController : MonoBehaviour
         _PIS.ProcessInputActionStates();
     }
 
-    private float _currDirChangeMag = 1.0f;
+    private float _currMoveSpeed = 1.0f;
+    private float _currDirChangeRate = 1.0f;
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
@@ -367,18 +369,35 @@ public class PlayerController : MonoBehaviour
                                          QueryTriggerInteraction.Ignore);
         
         bool fakeIsOnGround = false;
-        bool stopCharge = _jumpManager.CurrJump.JumpType == JumpTypes.Charge && _attackInputAction.WasPressedThisFrame();
+        bool stopCharge = _jumpManager.CurrJump.JumpType == JumpTypes.Charge && _attackInputAction.IsPressed();
+        bool isFarOffGround = !Physics.Raycast(transform.position, -Vector3.up, _farOffGroundCastDist, _playerRaycastMask, QueryTriggerInteraction.Ignore);
         
         if ((_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f) || stopCharge)
         {
-            _jumpManager.StopJump(_rigidbody);
+            _jumpManager.StopJump(_rigidbody, stopCharge, stopCharge);
             _jumpManager.ResetNumJumps();
+
+            if (isFarOffGround)
+            {
+                Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                _currDirChangeRate = DirChangeRate * DirChangeRateInAirFactor;
+                _playerMoveDir = currLinVel.normalized;
+                _currMoveSpeed = currLinVel.magnitude;
+            }
         }
         else if (_jumpManager.CurrJump.GetRemainingJumpTime() < 0.0f)
         {
             if (_jumpManager.CurrJump.JumpType == JumpTypes.Charge)
                 fakeIsOnGround = true;
-            _jumpManager.StopJump(_rigidbody);   
+            _jumpManager.StopJump(_rigidbody, !_isOnGround, !_isOnGround);
+
+            if (isFarOffGround)
+            {
+                Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                _currDirChangeRate = DirChangeRate * DirChangeRateInAirFactor;
+                _playerMoveDir = currLinVel.normalized;
+                _currMoveSpeed = currLinVel.magnitude;
+            }
         }   
         
         if (_isOnGround && _jumpManager.CurrJump.GetJumpTime() <= 0.0f)
@@ -386,6 +405,25 @@ public class PlayerController : MonoBehaviour
         
         _isStrafing = _isOnGround && _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing);
         _isOnGround = _isOnGround ? _isOnGround : fakeIsOnGround || _jumpManager.CurrJump.JumpType == JumpTypes.Swing && _jumpManager.NumJumps < 2;
+
+        if (_isOnGround && _aimInputAction.IsPressed() && _jumpManager.CurrJump.GetRemainingJumpTime() == 0.0f)
+        {
+            if (stopCharge)
+            {
+                Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                _currDirChangeRate = DirChangeRate * DirChangeRateInAirFactor;
+                _playerMoveDir = currLinVel.normalized;
+                _currMoveSpeed = currLinVel.magnitude;
+            }
+
+            PlayerCamera.EnableFreeFly = true;
+            PlayerCamera.CanMove = false;
+        }
+        else
+        {
+            PlayerCamera.EnableFreeFly = false;
+            PlayerCamera.CanMove = true;
+        }
 
         if (_PIS.GetPlayerInputActionTypes().Count > 0)
         {
@@ -427,7 +465,6 @@ public class PlayerController : MonoBehaviour
                     case PlayerActions.Charge:
                     {
                         _nextJumpParams = ChargeJumpParams;
-                        //_isOnGround = true;
                     } break;
                     case PlayerActions.Swing:
                     {
@@ -436,7 +473,7 @@ public class PlayerController : MonoBehaviour
                             _nextJumpParams = SwingJumpParams;
                         }
                         else
-                            noJumpInput = true;
+                            _nextJumpParams = SlamJumpParams;
                     } break;
                     case PlayerActions.Jump:
                     {
@@ -456,6 +493,9 @@ public class PlayerController : MonoBehaviour
             if (jumpTriggered)
             {
                 _isFirstJumpUpdate = true;
+                if (_playerMoveDir == Vector3.zero)
+                    _playerMoveDir = PCAM.transform.forward;
+
                 switch (_PIS.GetPlayerAction(0))
                 {
                     case PlayerActions.Charge:
@@ -467,7 +507,7 @@ public class PlayerController : MonoBehaviour
                     case PlayerActions.Swing:
                         Debug.Log("Swing!"); break;
                     case PlayerActions.Jump:
-                        Debug.Log("Jump!"); break;
+                        Debug.Log("Jump!: " + _rigidbody.linearVelocity); break;
                 }
             }
         }
@@ -494,34 +534,41 @@ public class PlayerController : MonoBehaviour
         _desiredMoveDir = _playerInputDir; 
         // By default the desired move dir is just the input dir, but this can change based on different actions.
 
-        float currMoveSpeed = WalkMoveSpeed;
+        bool isMoveInput = false;
+        if ((_isOnGround && _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Move) >= 0 && 
+            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Jump) < 0 &&
+            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Crouch) < 0) ||
+            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Strafing) >= 0)
+        {
+            isMoveInput = true;
+            _currMoveSpeed = WalkMoveSpeed;
+            _currDirChangeRate = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f);   
+        }
+        
+        float moveSpeed = _currMoveSpeed;
         if (!_isOnGround && !_isFirstJumpUpdate && _jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f)
         {
-            currMoveSpeed *= JumpMoveSpeedFactor;
+            moveSpeed *= JumpMoveSpeedFactor;
         }
-        else if (!_isOnGround && _jumpManager.CurrJump.GetRemainingJumpTime() <= 0.0f)
+        else if (!_isOnGround && isMoveInput && _jumpManager.CurrJump.GetRemainingJumpTime() <= 0.0f)
         {
-            currMoveSpeed *= InAirMoveSpeedFactor;
+            moveSpeed *= InAirMoveSpeedFactor;
         }
 
         Vector3 dirDiff = _desiredMoveDir - _playerMoveDir;
         float dirDiffMag = dirDiff.magnitude; 
         
-        if (_PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Move) >= 0 && 
-            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Jump) < 0)
-            _currDirChangeMag = DirChangeRate * (_isStrafing ? DirChangeRateStrafingFactor : 1.0f);
-        
-        _playerFaceTurnRate = _currDirChangeMag * PlayerFaceDirRotSpeedFactor;
-        _currDirChangeMag *= dt;
+        _playerFaceTurnRate = _currDirChangeRate * PlayerFaceDirRotSpeedFactor;
+        float dirChangeMag = _currDirChangeRate * dt;
 
-        _currDirChangeMag = (_currDirChangeMag > dirDiffMag) ? dirDiffMag : _currDirChangeMag;
-        _playerMoveDir += dirDiff.normalized * _currDirChangeMag;
+        dirChangeMag = (dirChangeMag > dirDiffMag) ? dirDiffMag : dirChangeMag;
+        _playerMoveDir += dirDiff.normalized * dirChangeMag;
 
-        Vector3 targetVelXZ = _playerMoveDir * currMoveSpeed;
+        Vector3 targetVelXZ = _playerMoveDir * moveSpeed;
         Vector3 currVel = _rigidbody.linearVelocity; currVel.y = 0.0f;
 
         if (targetVelXZ == Vector3.zero && _jumpManager.CurrJump.JumpType == JumpTypes.Double)
-            targetVelXZ = currVel.normalized * currMoveSpeed;
+            targetVelXZ = currVel.normalized * moveSpeed;
 
         if ((_jumpManager.CurrJump.GetRemainingJumpTime() <= 0.0f) || 
             (_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && _currJumpParams.AllowsMidAirControl))
@@ -532,7 +579,7 @@ public class PlayerController : MonoBehaviour
         if (!(_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && !_currJumpParams.AllowsMidAirControl))
         {
             _prevTargetVelXZNorm = (targetVelXZ.sqrMagnitude > 0.001f) ? targetVelXZ.normalized : _prevTargetVelXZNorm;
-            _prevTargetVelXZNorm = _isStrafing ? _playerLookDirXZ : _prevTargetVelXZNorm;
+            _prevTargetVelXZNorm = _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing) ? _playerLookDirXZ : _prevTargetVelXZNorm;
 
             _playerFaceDirRot = Quaternion.RotateTowards(CameraController.GetRotationAroundAxis(PCAM.transform.rotation, Vector3.up), 
                                                          Quaternion.FromToRotation(Vector3.forward, _prevTargetVelXZNorm), 
@@ -543,7 +590,7 @@ public class PlayerController : MonoBehaviour
         {
             PCAM.PlayerFaceDirRot = Quaternion.FromToRotation(PCAM.transform.forward, _desiredMoveDir) * PCAM.PlayerFaceDirRot;
             _rigidbody.AddForce((_desiredMoveDir * currVel.magnitude) - currVel, ForceMode.VelocityChange);
-            _prevTargetVelXZNorm = _desiredMoveDir;   
+            _prevTargetVelXZNorm = PCAM.transform.forward;   
         }
 
         #region Jumping

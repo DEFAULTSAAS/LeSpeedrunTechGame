@@ -385,6 +385,9 @@ public class CameraController : MonoBehaviour
                 }
             }
 
+            if (diffsAndDists.Count == 0)
+                return;
+
             diffsAndDists.Sort((a, b) => a.x.CompareTo(b.x));
             float finalDist = diffsAndDists[0].y;
 
