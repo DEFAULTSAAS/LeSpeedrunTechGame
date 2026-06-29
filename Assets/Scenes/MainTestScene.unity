@@ -1806,9 +1806,9 @@ MonoBehaviour:
     JumpHeight: 0
     JumpWidth: 0.25
     VerticalJumpDuration: 0
-    HorizontalJumpDuration: 0.33
-    MinChainJumpDelay: 0.15
-    MaxChainJumpDelay: 0.329
+    HorizontalJumpDuration: 0.6
+    MinChainJumpDelay: 0.25
+    MaxChainJumpDelay: 0.599
     JumpCurves:
       Y:
         serializedVersion: 2
