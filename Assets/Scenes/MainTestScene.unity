@@ -1132,12 +1132,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   PCAM: {fileID: 355849151}
   PlayerCamera: {fileID: 822436755}
-  WalkMoveSpeed: 3
+  WalkMoveSpeed: 4
   JumpMoveSpeedFactor: 0.9
-  InAirMoveSpeedFactor: 0.2
+  InAirMoveSpeedFactor: 0.6
   PlayerFaceDirRotSpeedFactor: 2.25
   ForwardSideFlipSpeedReduceFactor: 4
-  DirChangeRate: 7
+  DirChangeRate: 10
   DirChangeRateVelFactor: 1
   DirChangeRateStrafingFactor: 5
   DirChangeRateSlidingFactor: 0.05
@@ -1154,10 +1154,10 @@ MonoBehaviour:
     MaxChainJumps: 2
     JumpHeight: 1
     JumpWidth: 0
-    VerticalJumpDuration: 0.5
+    VerticalJumpDuration: 0.6
     HorizontalJumpDuration: 0
     MinChainJumpDelay: 0.1
-    MaxChainJumpDelay: 0.9
+    MaxChainJumpDelay: 0.599
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -1259,13 +1259,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
-    MaxChainJumps: 1
+    MaxChainJumps: 2
     JumpHeight: 0.75
     JumpWidth: 0
     VerticalJumpDuration: 0.5
     HorizontalJumpDuration: 0
-    MinChainJumpDelay: Infinity
-    MaxChainJumpDelay: 0
+    MinChainJumpDelay: 0.25
+    MaxChainJumpDelay: 0.49
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -1316,13 +1316,13 @@ MonoBehaviour:
           inWeight: 0.13433324
           outWeight: 0.18943305
         - serializedVersion: 3
-          time: 0.6355902
-          value: 0.31863594
-          inSlope: -9.965007
-          outSlope: -9.965007
+          time: 0.6517035
+          value: 0.34005928
+          inSlope: -6.939521
+          outSlope: -6.939521
           tangentMode: 0
           weightedMode: 0
-          inWeight: 0.10448517
+          inWeight: 0.123099916
           outWeight: 0
         m_PreInfinity: 2
         m_PostInfinity: 2
@@ -1448,13 +1448,13 @@ MonoBehaviour:
       X: 1
     IncludeGravityOnDecent: 0
     HittingGroundCancelsJump: 1
-    MaxChainJumps: 1
+    MaxChainJumps: 2
     JumpHeight: 1.5
     JumpWidth: 0
     VerticalJumpDuration: 1
     HorizontalJumpDuration: 0
-    MinChainJumpDelay: Infinity
-    MaxChainJumpDelay: 0
+    MinChainJumpDelay: 0.5
+    MaxChainJumpDelay: 0.999
     JumpCurves:
       Y:
         serializedVersion: 2
@@ -2227,6 +2227,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1295517926}
+  - {fileID: 1415910521}
   m_Father: {fileID: 355849147}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!23 &720002489
@@ -2308,6 +2309,84 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!1001 &814524667
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1415910521}
+    m_Modifications:
+    - target: {fileID: 211280466716591218, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_Name
+      value: Wrench
+      objectReference: {fileID: 0}
+    - target: {fileID: 211280466716591218, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.05000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.05000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 90
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: -4161369568681901532, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+--- !u!4 &814524668 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 462322728475301653, guid: fd76752d1ec7c1a738942c847134d6a8, type: 3}
+  m_PrefabInstance: {fileID: 814524667}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &820598251
 GameObject:
   m_ObjectHideFlags: 0
@@ -3057,6 +3136,38 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1415910520
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1415910521}
+  m_Layer: 6
+  m_Name: WrenchMount
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1415910521
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1415910520}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 814524668}
+  m_Father: {fileID: 720002488}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1551958937
 GameObject:

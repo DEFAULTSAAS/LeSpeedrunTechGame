@@ -430,6 +430,7 @@ public class PlayerController : MonoBehaviour
         {
             bool jumpTriggered = false;
             bool noJumpInput = false;
+            float factor = 1.0f;
 
             if (_isOnGround || (!_isOnGround && _jumpManager.CurrJump.NumJumps > 0))
             {
@@ -448,6 +449,10 @@ public class PlayerController : MonoBehaviour
                         float currMoveSpeed = currLinVel.magnitude;
                         float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
                         (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
+
+                        factor = jumpDurationReductionFactor;
+                        factor = _nextJumpParams.VerticalJumpDuration / (_nextJumpParams.VerticalJumpDuration * factor);
+                        factor = factor < 1.0f ? 1.0f : factor;
 
                         _nextJumpParams.VerticalJumpDuration *=  jumpDurationReductionFactor;
                         _nextJumpParams.HorizontalJumpDuration *= jumpDurationReductionFactor;
@@ -469,6 +474,10 @@ public class PlayerController : MonoBehaviour
                         float currMoveSpeed = currLinVel.magnitude;
                         float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
                         (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
+
+                        factor = jumpDurationReductionFactor;
+                        factor = _nextJumpParams.VerticalJumpDuration / (_nextJumpParams.VerticalJumpDuration * factor);
+                        factor = factor < 1.0f ? 1.0f : factor;
 
                         _nextJumpParams.VerticalJumpDuration *=  jumpDurationReductionFactor;
                         _nextJumpParams.HorizontalJumpDuration *= jumpDurationReductionFactor;
@@ -525,16 +534,45 @@ public class PlayerController : MonoBehaviour
                         if (currLinVel.magnitude > WalkMoveSpeed)
                             _rigidbody.AddForce((currLinVel.normalized * WalkMoveSpeed) - currLinVel, ForceMode.VelocityChange);
                     } break;
-                    case PlayerActions.Swing:
-                        Debug.Log("Swing!" + " " + Time.time); break;
-                    case PlayerActions.Jump:
-                        Debug.Log("Jump!: " + _rigidbody.linearVelocity); break;
                 }
 
-                if (_currJumpParams.JumpType == JumpTypes.Double)
+                switch (_currJumpParams.JumpType)
                 {
-                    PCAM.PlayerAnimator.StopPlayback();
-                    PCAM.PlayerAnimator.Play("DoubleJumpRoll");
+                    case JumpTypes.Double:
+                    {
+                        PCAM.PlayerAnimator.ResetControllerState();
+                        PCAM.PlayerAnimator.Play("DoubleJumpRoll");
+                    } break;
+                    case JumpTypes.Side:
+                    {
+                        PCAM.PlayerAnimator.ResetControllerState();
+                        switch (_PIS.GetPlayerAction(0))
+                        {
+                            case PlayerActions.ForwardLeftSide:
+                                PCAM.PlayerAnimator.SetFloat("PlaybackSpeed", factor); goto case PlayerActions.LeftSide;
+                            case PlayerActions.LeftSide:
+                                PCAM.PlayerAnimator.Play("LeftSideJumpRoll"); break;
+                            case PlayerActions.ForwardRightSide:
+                                PCAM.PlayerAnimator.SetFloat("PlaybackSpeed", factor); goto case PlayerActions.RightSide;
+                            case PlayerActions.RightSide:
+                                PCAM.PlayerAnimator.Play("RightSideJumpRoll"); break;
+                        }
+                    } break;
+                    case JumpTypes.Back:
+                    {
+                        PCAM.PlayerAnimator.ResetControllerState();
+                        PCAM.PlayerAnimator.Play("BackflipJumpRoll");
+                    } break;
+                    case JumpTypes.Swing:
+                    {
+                        PCAM.PlayerAnimator.ResetControllerState();
+                        PCAM.PlayerAnimator.Play("WrenchSwingAnim");
+                    } break;
+                    case JumpTypes.Slam:
+                    {
+                        PCAM.PlayerAnimator.ResetControllerState();
+                        PCAM.PlayerAnimator.Play("WrenchSlamAnim");
+                    } break;
                 }
             }
         }
@@ -565,7 +603,8 @@ public class PlayerController : MonoBehaviour
         if ((_isOnGround && _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Move) >= 0 && 
             _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Jump) < 0 &&
             _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Crouch) < 0) ||
-            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Strafing) >= 0)
+            _PIS.GetPlayerInputActionTypes().BinarySearch(PlayerInputActionTypes.Strafing) >= 0 ||
+            (!_isOnGround && _currJumpParams.AllowsMidAirControl && _desiredMoveDir != Vector3.zero))
         {
             isMoveInput = true;
             _currMoveSpeed = WalkMoveSpeed;
