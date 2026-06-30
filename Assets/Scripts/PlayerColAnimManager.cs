@@ -4,6 +4,7 @@ using UnityEngine;
 public class PlayerColAnimManager : MonoBehaviour
 {
     public CapsuleCollider MainPlayerCollider;
+    public Animator PlayerAnimator;
     public Quaternion PlayerFaceDirRot {
         get
         {
@@ -22,6 +23,11 @@ public class PlayerColAnimManager : MonoBehaviour
             MainPlayerCollider = GetComponent<CapsuleCollider>();
         if (!MainPlayerCollider)
             throw new NullReferenceException("Could not get the main player collider!");
+
+        if (!PlayerAnimator)
+            PlayerAnimator = GetComponentInChildren<Animator>();
+        if (!PlayerAnimator)
+            throw new NullReferenceException("Could not get the player animator!");
     }
 
     // Update is called once per frame

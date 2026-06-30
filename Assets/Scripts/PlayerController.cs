@@ -155,10 +155,10 @@ public struct JumpDurationParams
         MinChainJumpDelay = float.PositiveInfinity;
         MaxChainJumpDelay = 0.0f;
 
-        CurrVertJumpTime = float.PositiveInfinity;
+        CurrVertJumpTime = float.NegativeInfinity;
         RemainingVertJumpTime = 0.0f;
 
-        CurrHoriJumpTime = float.PositiveInfinity;
+        CurrHoriJumpTime = float.NegativeInfinity;
         RemainingHoriJumpTime = 0.0f;
     }
 }
@@ -224,6 +224,7 @@ public class PlayerController : MonoBehaviour
     public float JumpMoveSpeedFactor = 0.9f;
     public float InAirMoveSpeedFactor = 0.2f;
     public float PlayerFaceDirRotSpeedFactor = 2.0f;
+    public float ForwardSideFlipSpeedReduceFactor = 2.0f;
     public float DirChangeRate = 2.0f;
     // How much the current horizontal velocity effects how quickly the player direction is changed.
     public float DirChangeRateVelFactor = 1.0f;
@@ -389,7 +390,7 @@ public class PlayerController : MonoBehaviour
         {
             if (_jumpManager.CurrJump.JumpType == JumpTypes.Charge)
                 fakeIsOnGround = true;
-            _jumpManager.StopJump(_rigidbody, !_isOnGround, !_isOnGround);
+            _jumpManager.StopJump(_rigidbody, !_isOnGround || fakeIsOnGround, !_isOnGround || fakeIsOnGround);
 
             if (isFarOffGround)
             {
@@ -442,6 +443,14 @@ public class PlayerController : MonoBehaviour
                         LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
                         _nextJumpParams = LeftSideFlipJumpParams.ShallowCopy();
                         _nextJumpParams.JumpWidth *= 1.414f;
+
+                        Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                        float currMoveSpeed = currLinVel.magnitude;
+                        float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
+                        (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
+
+                        _nextJumpParams.VerticalJumpDuration *=  jumpDurationReductionFactor;
+                        _nextJumpParams.HorizontalJumpDuration *= jumpDurationReductionFactor;
                     } break;
                     case PlayerActions.LeftSide:
                     {
@@ -455,6 +464,14 @@ public class PlayerController : MonoBehaviour
                         LeftSideFlipJumpParams.JumpAxes.X.z = 0.707f;
                         _nextJumpParams = LeftSideFlipJumpParams.ShallowCopy();
                         _nextJumpParams.JumpWidth *= 1.414f;
+
+                        Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+                        float currMoveSpeed = currLinVel.magnitude;
+                        float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
+                        (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
+
+                        _nextJumpParams.VerticalJumpDuration *=  jumpDurationReductionFactor;
+                        _nextJumpParams.HorizontalJumpDuration *= jumpDurationReductionFactor;
                     } break;
                     case PlayerActions.RightSide:
                     {
@@ -473,7 +490,9 @@ public class PlayerController : MonoBehaviour
                             _nextJumpParams = SwingJumpParams;
                         }
                         else
-                            _nextJumpParams = SlamJumpParams;
+                        {
+                            _nextJumpParams = SlamJumpParams;   
+                        }
                     } break;
                     case PlayerActions.Jump:
                     {
@@ -493,8 +512,10 @@ public class PlayerController : MonoBehaviour
             if (jumpTriggered)
             {
                 _isFirstJumpUpdate = true;
-                if (_playerMoveDir == Vector3.zero)
-                    _playerMoveDir = PCAM.transform.forward;
+                // if (_playerMoveDir == Vector3.zero && _currJumpParams.JumpType == JumpTypes.Swing)
+                // {
+                //     _playerMoveDir = PCAM.transform.forward;   
+                // }
 
                 switch (_PIS.GetPlayerAction(0))
                 {
@@ -505,9 +526,15 @@ public class PlayerController : MonoBehaviour
                             _rigidbody.AddForce((currLinVel.normalized * WalkMoveSpeed) - currLinVel, ForceMode.VelocityChange);
                     } break;
                     case PlayerActions.Swing:
-                        Debug.Log("Swing!"); break;
+                        Debug.Log("Swing!" + " " + Time.time); break;
                     case PlayerActions.Jump:
                         Debug.Log("Jump!: " + _rigidbody.linearVelocity); break;
+                }
+
+                if (_currJumpParams.JumpType == JumpTypes.Double)
+                {
+                    PCAM.PlayerAnimator.StopPlayback();
+                    PCAM.PlayerAnimator.Play("DoubleJumpRoll");
                 }
             }
         }
@@ -576,19 +603,25 @@ public class PlayerController : MonoBehaviour
             _rigidbody.AddForce(targetVelXZ - currVel, ForceMode.VelocityChange);
         }
 
-        if (!(_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && !_currJumpParams.AllowsMidAirControl))
+        if (!(_jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f && !_currJumpParams.AllowsMidAirControl) && _desiredMoveDir != Vector3.zero)
         {
             _prevTargetVelXZNorm = (targetVelXZ.sqrMagnitude > 0.001f) ? targetVelXZ.normalized : _prevTargetVelXZNorm;
             _prevTargetVelXZNorm = _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing) ? _playerLookDirXZ : _prevTargetVelXZNorm;
 
-            _playerFaceDirRot = Quaternion.RotateTowards(CameraController.GetRotationAroundAxis(PCAM.transform.rotation, Vector3.up), 
-                                                         Quaternion.FromToRotation(Vector3.forward, _prevTargetVelXZNorm), 
-                                                         _playerFaceTurnRate);
+            Quaternion currRot = CameraController.GetRotationAroundAxis(PCAM.transform.rotation, Vector3.up);
+            Quaternion targetRot = Quaternion.FromToRotation(Vector3.forward, _prevTargetVelXZNorm);
+            float dirDist = Mathf.Acos(Mathf.Clamp(Vector3.Dot(PCAM.transform.forward, _prevTargetVelXZNorm), -1.0f, 1.0f));
+
+            _playerFaceDirRot = Quaternion.Lerp(currRot, targetRot, (_playerFaceTurnRate * dt) / dirDist);
+            _playerFaceDirRot = CameraController.GetRotationAroundAxis(_playerFaceDirRot, Vector3.up);
             PCAM.PlayerFaceDirRot = _playerFaceDirRot;   
         }
         if (_jumpManager.CurrJump.GetJumpTime() == 0.0f && _jumpManager.CurrJump.JumpType == JumpTypes.Swing)
         {
             PCAM.PlayerFaceDirRot = Quaternion.FromToRotation(PCAM.transform.forward, _desiredMoveDir) * PCAM.PlayerFaceDirRot;
+            if (_desiredMoveDir == Vector3.zero)
+                _desiredMoveDir = PCAM.transform.forward;
+
             _rigidbody.AddForce((_desiredMoveDir * currVel.magnitude) - currVel, ForceMode.VelocityChange);
             _prevTargetVelXZNorm = PCAM.transform.forward;   
         }
