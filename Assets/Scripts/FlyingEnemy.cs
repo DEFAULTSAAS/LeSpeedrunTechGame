@@ -17,9 +17,11 @@ public interface IEnemy
     public Vector2 MinMaxDetectionRange { get; }
     public Vector3 SpawnPos { get; }
 
-    public bool TickAttackLogic(float inDT, float inTargetDist)
+    public Tuple<bool, float> TickAttackLogic(float inDT, float inTargetDist, bool inIsAttacking = true)
     {
         bool isAttacking = IsAttacking;
+        float damage = 0.0f;
+
         if (!isAttacking)
         {
             if (inTargetDist < MaxAttackRange)
@@ -27,14 +29,16 @@ public interface IEnemy
 
             if (CurrAttackAcc >= CurrAttackDelay)
             {
-                Attack();
-                isAttacking = true;
+                var result = Attack();
+                isAttacking = result.Item1;
+                damage = result.Item2;
+
                 CurrAttackDelay = UnityEngine.Random.Range(MinMaxAttackDelay.x, MinMaxAttackDelay.y);
                 CurrAttackAcc = 0.0f;   
             }   
         }
 
-        return isAttacking;
+        return new (isAttacking, damage);
     }
     public bool TickSeekLogic(float inDT, float inTargetDist)
     {
@@ -57,7 +61,13 @@ public interface IEnemy
 
         return true;
     }
-    public float Attack();
+    public Tuple<bool, float> Attack();
+}
+
+public enum FlyingEnemyTypes
+{
+    Melee,
+    Gunner
 }
 
 public class FlyingEnemy : MonoBehaviour, IEnemy
@@ -76,6 +86,9 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     [field : SerializeField] public Vector2 MinMaxDetectionRange { get; private set; }
     public Vector3 SpawnPos { get; private set; }
 
+    public GameObject ProjectilePrefab;
+    public FlyingEnemyTypes FlyingEnemyType;
+    
     public float OrbitHeight = 5.0f;
     public float OrbitRadius = 5.0f;
     public float OrbitSpeed = 90.0f;
@@ -113,10 +126,20 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
                          _currOrbitOrientation * Vector3.forward * OrbitRadius;
             _justAttacked = false;   
         }
-        else if (IsAttacking && !_justAttacked)
+        else if (FlyingEnemyType == FlyingEnemyTypes.Melee && IsAttacking && !_justAttacked)
         {
             _targetPos = _target.transform.position;
             _justAttacked = true;
+        }
+        else if (FlyingEnemyType == FlyingEnemyTypes.Gunner && IsAttacking)
+        {
+            IsAttacking = false;
+            GameObject projectileGameObj = Instantiate(ProjectilePrefab, 
+                                                       transform.position, 
+                                                       Quaternion.FromToRotation(Vector3.forward, 
+                                                       (_target.transform.position - transform.position).normalized));
+            Projectile projectile = projectileGameObj.GetComponent<Projectile>();
+            projectile.TargetTrajectory = transform.position;
         }
         
         float distanceToTarget = Vector3.Distance(transform.position, _targetPos);
@@ -130,14 +153,14 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
         if (!IsPursuing)
             _targetPos = SpawnPos;
         
-        IsAttacking = _enemy.TickAttackLogic(dt, distanceToTarget);
+        IsAttacking = _enemy.TickAttackLogic(dt, distanceToTarget).Item1;
         IsPursuing = _enemy.TickSeekLogic(dt, distanceToTarget);
 
         transform.position += (_targetPos - transform.position).normalized * MoveSpeed * dt;
     }
 
-    public float Attack()
+    public Tuple<bool, float> Attack()
     {
-        return 0.0f;
+        return new(true, 0.0f);
     }
 }
