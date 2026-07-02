@@ -2,8 +2,16 @@ using UnityEngine;
 
 public interface IWeapon
 {
+    public float FireDelay {get;}
     public float LastFireTime {get; set;}
-    public void TryFire();
+    public void TryFire()
+    {
+        if ((Time.time - LastFireTime) > FireDelay)
+        {
+            Fire();
+            LastFireTime = Time.time;
+        }
+    }
     public void Fire();
 }
 
