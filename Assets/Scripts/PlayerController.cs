@@ -179,6 +179,12 @@ public class JumpManager
 
     public bool StartJump(JumpParams inJumpParams)
     {
+        // Bit of a hack, but there's no quick and easy way to prevent this.
+        // Normal checks below will falsely return true for this combo,
+        // due to the bitwise & succeeding as you can slam with both.
+        if (CurrJump.JumpType == JumpTypes.Side && inJumpParams.JumpType == JumpTypes.Double)
+            return false;
+
         if (CurrJump.JumpType == JumpTypes.None || 
            ((CurrJump.JumpType != inJumpParams.JumpType || (int)CurrJump.JumpType < 0) && 
            ((int)CurrJump.JumpType & unchecked(0x7FFFFFFF) & (int)inJumpParams.JumpType) != 0 &&
@@ -219,6 +225,7 @@ public class PlayerController : MonoBehaviour
 {
     public PlayerColAnimManager PCAM;
     public CameraController PlayerCamera;
+    public CameraPivot PlayerCameraPivot;
     
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
@@ -246,6 +253,8 @@ public class PlayerController : MonoBehaviour
     public float OnGroundDistanceIncrease = 0.025f;
     public float GroundSnapDistance = 0.05f;
     public float GroundSnapSpeed = 10.0f;
+
+    private BlasterWeapon _blasterWeapon;
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
@@ -296,6 +305,9 @@ public class PlayerController : MonoBehaviour
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
         
+        _blasterWeapon = GetComponent<BlasterWeapon>();
+        _blasterWeapon.ProjectileSpawnPoint = transform;
+
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _farOffGroundCastDist = (PCAM.MainPlayerCollider.height / 2.0f) + FarOffGroundDistance;
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
@@ -351,6 +363,20 @@ public class PlayerController : MonoBehaviour
         _moveInputAcc += moveInput;
 
         _PIS.ProcessInputActionStates();
+        if (_attackInputAction.IsPressed() && _isStrafing)
+        {
+            Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
+            Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
+            
+            RaycastHit enemyHit;
+            bool aimingAtEnemy = Physics.SphereCast(cameraCentre, 0.33f, PlayerCamera.transform.forward, out enemyHit, 1000.0f, 1 << LayerMask.NameToLayer("Enemy"));
+            Debug.Log(aimingAtEnemy);
+
+            if (!aimingAtEnemy)
+                ((IWeapon)_blasterWeapon).TryFire(PlayerCamera.transform.forward, PlayerCamera.transform.position + trajectoryStartPoint, PlayerCamera.transform.forward);
+            else
+                ((IWeapon)_blasterWeapon).TryFire(Vector3.zero, Vector3.zero, Vector3.zero, enemyHit.transform);
+        }
     }
 
     private float _currMoveSpeed = 1.0f;
@@ -407,6 +433,7 @@ public class PlayerController : MonoBehaviour
         _isStrafing = _isOnGround && _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing);
         _isOnGround = _isOnGround ? _isOnGround : fakeIsOnGround || _jumpManager.CurrJump.JumpType == JumpTypes.Swing && _jumpManager.NumJumps < 2;
 
+        PlayerCameraPivot.InStrafeMode = _isStrafing;
         if (_isOnGround && _aimInputAction.IsPressed() && _jumpManager.CurrJump.GetRemainingJumpTime() == 0.0f)
         {
             if (stopCharge)

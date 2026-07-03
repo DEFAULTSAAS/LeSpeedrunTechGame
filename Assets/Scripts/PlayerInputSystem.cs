@@ -154,7 +154,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y > 0.0f && state.HasChanged)
+            if (state.AxisValue.x < 0.0f && state.AxisValue.y != 0.0f && state.HasChanged)
                 return PlayerActions.ForwardLeftSide;
             return PlayerActions.None;                                       
         }));
@@ -163,7 +163,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing}, 
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y > 0.0f)
+            if (state.AxisValue.x < 0.0f && state.AxisValue.y != 0.0f)
                 return PlayerActions.ForwardLeftSide;
             return PlayerActions.None;                                       
         }));
@@ -172,7 +172,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch}, 
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y > 0.0f && state.HasChanged)
+            if (state.AxisValue.x > 0.0f && state.AxisValue.y != 0.0f && state.HasChanged)
                 return PlayerActions.ForwardRightSide;
             return PlayerActions.None;                                       
         }));
@@ -181,7 +181,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y > 0.0f)
+            if (state.AxisValue.x > 0.0f && state.AxisValue.y != 0.0f)
                 return PlayerActions.ForwardRightSide;
             return PlayerActions.None;                                       
         }));

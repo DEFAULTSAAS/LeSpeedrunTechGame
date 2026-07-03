@@ -9,7 +9,8 @@ public enum ProjectileTypes
 public class Projectile : MonoBehaviour
 {
     public float TimeSpawned { get; private set; }
-    public Vector3 TargetTrajectory { get; set; }
+    public Vector3 TrajectoryPos { get; set; }
+    public Vector3 TrajectoryDir { get; set; }
     public Vector3 SpawnPos { get; set; }
 
     public ProjectileTypes ProjectileType;
@@ -21,11 +22,13 @@ public class Projectile : MonoBehaviour
     public float BombHeight = 2.0f;
     public float Timeout = 10.0f;
 
+    private Vector3 _spawnTrajDiff;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         TimeSpawned = Time.time;
         SpawnPos = transform.position;
+        _spawnTrajDiff = TrajectoryPos - transform.position;
     }
 
     private float _currBombTime = 0.0f;
@@ -48,15 +51,16 @@ public class Projectile : MonoBehaviour
                 {
                     Vector3 moveDir = (Target.position - transform.position).normalized;
                     transform.position += moveDir * Speed * dt;
-                    transform.rotation = Quaternion.FromToRotation(transform.forward, moveDir);
+                    transform.rotation = Quaternion.FromToRotation(Vector3.forward, moveDir);
                 }
                 else
                 {
                     transform.position += transform.forward * Speed * dt;
                     
-                    Vector3 startPosDiff = transform.position - SpawnPos;
-                    Vector3 targetTrajectoryPoint = TargetTrajectory + startPosDiff;
-                    transform.position += (targetTrajectoryPoint - transform.position) * Speed * dt;
+                    Vector3 targetPos = Vector3.Project(transform.position - SpawnPos, TrajectoryDir);
+                    targetPos += _spawnTrajDiff;
+                    targetPos = SpawnPos + targetPos;
+                    transform.position += (targetPos - transform.position) * Speed * dt;
                 }
             } break;
             case ProjectileTypes.Bomb:

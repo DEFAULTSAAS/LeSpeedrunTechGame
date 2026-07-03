@@ -277,6 +277,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 559890492}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &158531929
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 158531930}
+  - component: {fileID: 158531931}
+  m_Layer: 0
+  m_Name: CameraPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &158531930
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 158531929}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 559890492}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &158531931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 158531929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc71984b43bbbc619ae63a835e0dbe9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraPivot
+  Target: {fileID: 155393900}
+  StrafingOffset: {x: 0, y: 0.5, z: 0}
+  MoveSpeed: 10
 --- !u!1 &176652902
 GameObject:
   m_ObjectHideFlags: 0
@@ -401,7 +448,8 @@ GameObject:
   - component: {fileID: 194297266}
   - component: {fileID: 194297265}
   - component: {fileID: 194297264}
-  m_Layer: 0
+  - component: {fileID: 194297268}
+  m_Layer: 8
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -503,6 +551,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &194297268
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 194297263}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &230144991
 GameObject:
   m_ObjectHideFlags: 0
@@ -1176,6 +1245,7 @@ GameObject:
   - component: {fileID: 559890492}
   - component: {fileID: 559890493}
   - component: {fileID: 559890494}
+  - component: {fileID: 559890495}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -1203,6 +1273,7 @@ Transform:
   - {fileID: 1569881266}
   - {fileID: 934377069}
   - {fileID: 1315727870}
+  - {fileID: 158531930}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &559890493
@@ -1229,7 +1300,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 1
 --- !u!114 &559890494
@@ -1246,6 +1317,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   PCAM: {fileID: 355849151}
   PlayerCamera: {fileID: 822436755}
+  PlayerCameraPivot: {fileID: 158531931}
   WalkMoveSpeed: 4
   JumpMoveSpeedFactor: 0.9
   InAirMoveSpeedFactor: 0.6
@@ -2053,6 +2125,23 @@ MonoBehaviour:
   OnGroundDistanceIncrease: 0.025
   GroundSnapDistance: 0.6
   GroundSnapSpeed: 10
+--- !u!114 &559890495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 559890489}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79bf5e12b2dc79eff81ef7462e9a0f9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlasterWeapon
+  <Damage>k__BackingField: 10
+  <ProjectileSpeed>k__BackingField: 20
+  <FireDelay>k__BackingField: 0.2
+  <ProjectileSpawnPoint>k__BackingField: {fileID: 0}
+  ProjectilePrefab: {fileID: 5064070499447676685, guid: eacd429955ce16f04897a3f81f7aac4f, type: 3}
 --- !u!1 &634871910
 GameObject:
   m_ObjectHideFlags: 0
@@ -2766,8 +2855,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7dea87bd6c89e995c98d41dd101b6307, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
-  Target: {fileID: 155393900}
-  TargetFPSPoint: {fileID: 155393900}
+  Target: {fileID: 158531930}
+  TargetFPSPoint: {fileID: 158531930}
   VisCheckPoints:
   - {fileID: 417346705}
   - {fileID: 155393900}
@@ -3297,7 +3386,7 @@ GameObject:
   - component: {fileID: 1420423173}
   - component: {fileID: 1420423172}
   - component: {fileID: 1420423177}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}

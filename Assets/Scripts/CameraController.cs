@@ -477,6 +477,11 @@ public class CameraController : MonoBehaviour
         return _cameraOrientation;
     }
 
+    public Camera GetCamera()
+    {
+        return _camera;
+    }
+
     private void RefreshSpherecastCommands()
     {
         _cameraSphereCastRadius = _currTargetOrbitRadius * Mathf.Sin(_angularSphereCastRadius);

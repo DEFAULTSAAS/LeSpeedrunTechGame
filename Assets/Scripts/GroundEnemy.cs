@@ -95,12 +95,14 @@ public class GroundEnemy : MonoBehaviour, IEnemy
             }
             else
             {
+                Vector3 dirToTarget = (_target.transform.position - transform.position).normalized;
                 GameObject projectileGameObj = Instantiate(ProjectilePrefab, 
                                                        transform.position, 
                                                        Quaternion.FromToRotation(Vector3.forward, 
-                                                       (_target.transform.position - transform.position).normalized));
+                                                       dirToTarget));
                 Projectile projectile = projectileGameObj.GetComponent<Projectile>();
-                projectile.TargetTrajectory = transform.position;
+                projectile.TrajectoryPos = transform.position;
+                projectile.TrajectoryDir = dirToTarget;
 
                 Debug.Log("Shooting");
             }

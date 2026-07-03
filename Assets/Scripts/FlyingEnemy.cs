@@ -134,12 +134,16 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
         else if (FlyingEnemyType == FlyingEnemyTypes.Gunner && IsAttacking)
         {
             IsAttacking = false;
+
+            Vector3 dirToTarget = (_target.transform.position - transform.position).normalized;
             GameObject projectileGameObj = Instantiate(ProjectilePrefab, 
                                                        transform.position, 
                                                        Quaternion.FromToRotation(Vector3.forward, 
-                                                       (_target.transform.position - transform.position).normalized));
+                                                       dirToTarget));
+            
             Projectile projectile = projectileGameObj.GetComponent<Projectile>();
-            projectile.TargetTrajectory = transform.position;
+            projectile.TrajectoryPos = transform.position;
+            projectile.TrajectoryDir = dirToTarget;
         }
         
         float distanceToTarget = Vector3.Distance(transform.position, _targetPos);
