@@ -13,10 +13,13 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     public bool IsAttacking { get; private set;}
     public bool IsPursuing { get; private set; }
 
+     public float CurrHealth {get; set;}
     public float CurrAttackDelay {get; set;}
     public float CurrAttackAcc {get; set;}
     public float CurrOutOfRangeAcc {get; set;}
 
+
+    [field : SerializeField] public float Health { get; private set; }
     [field : SerializeField] public float AttackDamage { get; private set; }
     [field : SerializeField] public float MaxAttackRange { get; private set; }
     [field : SerializeField] public float StopSeekingTime { get; private set; }
@@ -80,6 +83,9 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         float distanceToTarget = Vector3.Distance(transform.position, _target.transform.position);
         IsAttacking = _enemy.TickAttackLogic(dt, distanceToTarget).Item1;
         IsPursuing = _enemy.TickSeekLogic(dt, distanceToTarget);
+
+        if (CurrHealth < 0.0f)
+            Destroy(gameObject);
     }
 
     public Tuple<bool, float> Attack()

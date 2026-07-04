@@ -6,10 +6,12 @@ public interface IEnemy
     public bool IsAttacking { get; }
     public bool IsPursuing { get; }
 
+    public float CurrHealth {get; set;}
     public float CurrAttackDelay { get; set; }
     public float CurrAttackAcc { get; set; }
     public float CurrOutOfRangeAcc { get; set; } 
     
+    public float Health {get;}
     public float AttackDamage { get; }
     public float MaxAttackRange { get; }
     public float StopSeekingTime { get; }
@@ -62,6 +64,11 @@ public interface IEnemy
         return true;
     }
     public Tuple<bool, float> Attack();
+    public float DamageEnemy(float inDamage)
+    {
+        CurrHealth -= inDamage;
+        return inDamage;
+    }
 }
 
 public enum FlyingEnemyTypes
@@ -75,10 +82,12 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     public bool IsAttacking { get; private set;}
     public bool IsPursuing { get; private set; }
 
+    public float CurrHealth {get; set;}
     public float CurrAttackDelay {get; set;}
     public float CurrAttackAcc {get; set;}
     public float CurrOutOfRangeAcc {get; set;}
 
+    [field : SerializeField] public float Health { get; private set; }
     [field : SerializeField] public float AttackDamage { get; private set; }
     [field : SerializeField] public float MaxAttackRange { get; private set; }
     [field : SerializeField] public float StopSeekingTime { get; private set; }
@@ -106,6 +115,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     {
         _target = FindFirstObjectByType<PlayerController>();
         _enemy = this;
+        CurrHealth = Health;
     }
 
     // Update is called once per frame

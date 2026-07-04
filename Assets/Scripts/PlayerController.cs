@@ -226,6 +226,7 @@ public class PlayerController : MonoBehaviour
     public PlayerColAnimManager PCAM;
     public CameraController PlayerCamera;
     public CameraPivot PlayerCameraPivot;
+    public BombLauncher PlayerBombLauncher;
     
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
@@ -365,17 +366,33 @@ public class PlayerController : MonoBehaviour
         _PIS.ProcessInputActionStates();
         if (_attackInputAction.IsPressed() && _isStrafing)
         {
-            Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
-            Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
+            // Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
+            // Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
             
-            RaycastHit enemyHit;
-            bool aimingAtEnemy = Physics.SphereCast(cameraCentre, 0.33f, PlayerCamera.transform.forward, out enemyHit, 1000.0f, 1 << LayerMask.NameToLayer("Enemy"));
-            Debug.Log(aimingAtEnemy);
+            // RaycastHit enemyHit;
+            // bool aimingAtEnemy = Physics.SphereCast(cameraCentre, 0.33f, PlayerCamera.transform.forward, out enemyHit, 1000.0f, 1 << LayerMask.NameToLayer("Enemy"));
+            // Debug.Log(aimingAtEnemy);
 
-            if (!aimingAtEnemy)
-                ((IWeapon)_blasterWeapon).TryFire(PlayerCamera.transform.forward, PlayerCamera.transform.position + trajectoryStartPoint, PlayerCamera.transform.forward);
-            else
-                ((IWeapon)_blasterWeapon).TryFire(Vector3.zero, Vector3.zero, Vector3.zero, enemyHit.transform);
+            // if (!aimingAtEnemy)
+            //     ((IWeapon)_blasterWeapon).TryFire(PlayerCamera.transform.forward, PlayerCamera.transform.position + trajectoryStartPoint, PlayerCamera.transform.forward);
+            // else
+            //     ((IWeapon)_blasterWeapon).TryFire(Vector3.zero, Vector3.zero, Vector3.zero, enemyHit.transform);
+
+            Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
+            Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
+            
+            RaycastHit groundHit;
+            bool aimingAtGround = Physics.Raycast(cameraCentre, PlayerCamera.transform.forward, out groundHit, 1000.0f, _playerRaycastMask);
+
+            if (aimingAtGround)
+                hitPoint = groundHit.point;
+
+            ((IWeapon)PlayerBombLauncher).TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);
+        }
+        else if (_attackInputAction.IsPressed())
+        {
+            Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
+            ((IWeapon)PlayerBombLauncher).TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);
         }
     }
 
@@ -828,6 +845,17 @@ public class PlayerController : MonoBehaviour
                 _rigidbody.AddForce(_jumpManager.ChosenXAxis * speed, ForceMode.VelocityChange);   
         }
         #endregion
+    }
+
+    public void RedirectPlayerVelocity()
+    {
+        Vector3 currVel = _rigidbody.linearVelocity;
+        Vector3 currVelXZ = currVel; currVelXZ.y = 0.0f;
+        Vector3 currVelXZNorm = currVelXZ.normalized;
+
+        Vector3 newVec = Quaternion.Lerp(Quaternion.FromToRotation(Vector3.forward, currVelXZNorm), 
+                                         Quaternion.FromToRotation(currVelXZNorm, Vector3.up), 0.75f) * currVelXZ;
+        newVec.y += currVel.y;
     }
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)

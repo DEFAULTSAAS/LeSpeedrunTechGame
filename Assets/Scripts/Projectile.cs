@@ -23,15 +23,39 @@ public class Projectile : MonoBehaviour
     public float Timeout = 10.0f;
 
     private Vector3 _spawnTrajDiff;
+    private Vector3 _targetPos;
+    private float _currBombTime;
+    private float _currBombHeight;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         TimeSpawned = Time.time;
         SpawnPos = transform.position;
+
+        _currBombTime = BombTime;
+        _currBombHeight = BombHeight;        
         _spawnTrajDiff = TrajectoryPos - transform.position;
+        _targetPos = Target ? Target.transform.position : Vector3.zero;
+
+        if (Target)
+        {
+            Vector3 horiVec = _targetPos - SpawnPos;
+            horiVec.y = 0.0f;
+
+            float horiDist = horiVec.magnitude;
+            float bombHoriDist = Speed * BombTime;
+            if (horiDist < bombHoriDist)
+            {
+                _currBombTime = horiDist / Speed;
+                
+                float reductionFactor = _currBombTime / BombTime;
+                _currBombHeight *= reductionFactor;
+            }
+        }
     }
 
-    private float _currBombTime = 0.0f;
+    private float _currBombTimeAcc = 0.0f;
     // Update is called once per frame
     void Update()
     {
@@ -67,25 +91,54 @@ public class Projectile : MonoBehaviour
             {
                 if (Target != null)
                 {
-                    transform.position += (Target.position - transform.position).normalized * Speed * dt;
+                    transform.position += (_targetPos - transform.position).normalized * Speed * dt;
                 }
                 else
                 {
                     transform.position += transform.forward * Speed * dt;   
                 }
                 
-                if (_currBombTime <= BombTime)
+                if (_currBombTimeAcc <= _currBombTime)
                 {
-                    float adjustedDT = dt / BombTime;
+                    float adjustedDT = dt / _currBombTime;
                     transform.position += Vector3.up * 
-                                          PlayerController.CalcCurveVelocity(BombHeightCurve, _currBombTime / BombTime, adjustedDT) * 
-                                          BombHeight * 
+                                          PlayerController.CalcCurveVelocity(BombHeightCurve, _currBombTimeAcc / _currBombTime, adjustedDT) * 
+                                          _currBombHeight * 
                                           dt;    
                 }
                 else
                     transform.position += Vector3.up * Physics.gravity.y * dt;
-                _currBombTime += dt;
+                _currBombTimeAcc += dt;
             } break;
+        }
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        if (ProjectileType == ProjectileTypes.Bomb)
+        {
+            Collider[] playerCollider = Physics.OverlapSphere(transform.position, 1.0f, 1 << LayerMask.NameToLayer("Player"));
+            if (playerCollider.Length > 0)
+            {
+                PlayerController pc = playerCollider[0].gameObject.transform.parent.GetComponent<PlayerController>();
+                if (pc && (Time.time - TimeSpawned) <= 0.02f)
+                {
+                    Debug.Log("Yipeee");
+                    pc.RedirectPlayerVelocity();
+                }
+            }
+
+            Collider[] enemyColliders = Physics.OverlapSphere(transform.position, TrajectoryPos.x, 1 << LayerMask.NameToLayer("Enemy")); 
+            foreach (Collider collider in enemyColliders)
+            {
+                IEnemy enemy = collider.gameObject.GetComponent<IEnemy>();
+                if (enemy != null)
+                {
+                    enemy.DamageEnemy(Damage);
+                }
+            }
+
+            Destroy(gameObject);
         }
     }
 }
