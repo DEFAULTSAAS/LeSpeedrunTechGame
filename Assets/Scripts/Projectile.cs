@@ -1,5 +1,7 @@
+using System;
 using UnityEngine;
 
+[Serializable]
 public enum ProjectileTypes
 {
     Bullet,
@@ -60,7 +62,7 @@ public class Projectile : MonoBehaviour
         _visRot = transform.GetChild(0);
         if (_visRot && ProjectileType == ProjectileTypes.Bomb)
         {
-            _visRot.forward = new Vector3(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f)).normalized;
+            _visRot.forward = new Vector3(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f)).normalized;
         }
     }
 
@@ -90,12 +92,10 @@ public class Projectile : MonoBehaviour
                 {
                     transform.position += transform.forward * Speed * dt;
                     
-                    Vector3 targetPos = Vector3.Project(transform.position - SpawnPos, TrajectoryDir);
-                    targetPos = SpawnPos + targetPos;
-                    targetPos += _spawnTrajDiff;
+                    Vector3 targetPos = Vector3.Project(transform.position - TrajectoryPos, TrajectoryDir);
+                    targetPos = TrajectoryPos + targetPos;
+                    //targetPos += _spawnTrajDiff;
                     transform.position += (targetPos - transform.position) * Speed * dt;
-
-                    Debug.Log(targetPos - transform.position);
                 }
             } break;
             case ProjectileTypes.Bomb:
@@ -138,8 +138,11 @@ public class Projectile : MonoBehaviour
             
             AudioSource explosionSound = gameObject.AddComponent<AudioSource>();
             explosionSound.clip = ExplosionSoundClip;
-            explosionSound.volume = 0.2f;
-            explosionSound.minDistance = 5.0f;
+            explosionSound.volume = ProjectileType == ProjectileTypes.Bomb ? 0.2f : 0.1f;
+            explosionSound.minDistance = ProjectileType == ProjectileTypes.Bomb ? 5.0f : 1.0f;
+            explosionSound.maxDistance = ProjectileType == ProjectileTypes.Bomb ? explosionSound.maxDistance : 10.0f;
+            explosionSound.spatialBlend = ProjectileType == ProjectileTypes.Bomb ? explosionSound.spatialBlend : 1.0f;
+            explosionSound.rolloffMode = ProjectileType == ProjectileTypes.Bomb ? explosionSound.rolloffMode : AudioRolloffMode.Linear;
             explosionSound.Play();
 
             Destroy(gameObject, 4.0f);
@@ -172,6 +175,21 @@ public class Projectile : MonoBehaviour
                 GameObject explosion = Instantiate(ExplosionPrefab, transform.position, Quaternion.identity);
                 explosion.transform.localScale = Vector3.one * 0.5f;
                 Destroy(explosion, 4.0f);
+            }
+            Destroy(gameObject);
+        }
+        else
+        {
+            IEnemy enemy = collision.collider.gameObject.GetComponent<IEnemy>();
+            if (enemy != null)
+            {
+                enemy.DamageEnemy(Damage);
+            }
+
+            PlayerController pc = collision.collider.gameObject.transform.GetComponentInParent<PlayerController>();
+            if (pc)
+            {
+                pc.HurtPlayer(Damage);
             }
             Destroy(gameObject);
         }

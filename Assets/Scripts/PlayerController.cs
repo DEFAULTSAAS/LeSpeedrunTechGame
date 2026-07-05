@@ -1,5 +1,6 @@
 using System;
 using Unity.VisualScripting;
+using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -228,7 +229,10 @@ public class PlayerController : MonoBehaviour
     public CameraPivot PlayerCameraPivot;
     public BombLauncher PlayerBombLauncher;
     public BlasterWeapon PlayerBlasterWeapon;
+    public GameObject DestructionEffect;
+    public AudioClip[] AudioClips;
     
+    public float Health = 100.0f;
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
     public float InAirMoveSpeedFactor = 0.2f;
@@ -257,6 +261,7 @@ public class PlayerController : MonoBehaviour
     public float GroundSnapSpeed = 10.0f;
 
     private IWeapon _currWeapon;
+    private AudioSource _playerSoundSource;
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
@@ -285,6 +290,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 _momentumDir;
     private Vector3 _prevTargetVelXZNorm = Vector3.forward;
     
+    private float _currPlayerHealth;
     private float _playerFaceTurnRate;
     private float _momentumMag;
     private float _onGroundSphereCastDist;
@@ -296,6 +302,7 @@ public class PlayerController : MonoBehaviour
     private bool _isOnGround = false;
     private bool _isInGroundSnapRange = false;
     private bool _isStrafing = false;
+    private bool _updatePlayer = true;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -309,6 +316,8 @@ public class PlayerController : MonoBehaviour
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
         _currWeapon = PlayerBlasterWeapon;
+        _playerSoundSource = GetComponent<AudioSource>();
+        _currPlayerHealth = Health;
 
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _farOffGroundCastDist = (PCAM.MainPlayerCollider.height / 2.0f) + FarOffGroundDistance;
@@ -366,21 +375,33 @@ public class PlayerController : MonoBehaviour
         Vector2 moveInput = _moveInputAction.ReadValue<Vector2>();
         _moveInputAcc += moveInput;
 
+        if (!_updatePlayer)
+            return;
+
         if (_selectFirstWeapon.WasPressedThisFrame())
         {
             PlayerBlasterWeapon.gameObject.SetActive(true);
             PlayerBombLauncher.gameObject.SetActive(false);
-            _currWeapon = PlayerBlasterWeapon;   
+            _currWeapon = PlayerBlasterWeapon;
+
+            _playerSoundSource.PlayOneShot(AudioClips[0]);   
         }
         if (_selectSecondWeapon.WasPressedThisFrame())
         {
             PlayerBlasterWeapon.gameObject.SetActive(false);
             PlayerBombLauncher.gameObject.SetActive(true);
+            PlayerBombLauncher.WeaponAnimator.StopPlayback();
+            //PlayerBombLauncher.WeaponAnimator.ResetControllerState();
             _currWeapon = PlayerBombLauncher;   
+
+            _playerSoundSource.PlayOneShot(AudioClips[1]);
         }
 
         _PIS.ProcessInputActionStates();
-        if (_attackInputAction.IsPressed() && _isStrafing)
+        bool actionInputPressed = _attackInputAction.IsPressed();
+        bool isStrafing = _isStrafing || _PIS.GetIfInputPresent(PlayerInputActionTypes.Strafing) && _jumpManager.CurrJump.JumpType == JumpTypes.Side;
+        
+        if (actionInputPressed && isStrafing)
         {
             Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
             Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
@@ -405,18 +426,21 @@ public class PlayerController : MonoBehaviour
                 if (aimingAtGround)
                     hitPoint = groundHit.point;
 
-                _currWeapon.TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);   
+                _currWeapon.TryFire(hitPoint, Vector3.one * 4.0f, Vector3.zero);   
             }
         }
-        else if (_attackInputAction.IsPressed())
+        else if (actionInputPressed)
         {
             Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
             Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
 
             if (_currWeapon.ProjectileType == ProjectileTypes.Bomb)
-                _currWeapon.TryFire(hitPoint, Vector3.one * 3.0f, Vector3.one * currLinVel.magnitude);
+            {
+                _currWeapon.TryFire(hitPoint, Vector3.one * 4.0f, Vector3.one * currLinVel.magnitude);   
+            }
             else if (_currWeapon.ProjectileType == ProjectileTypes.Bullet)
             {
+                PlayerBlasterWeapon.CurrPlayerSpeed = currLinVel.magnitude;
                 _currWeapon.TryFire(PCAM.transform.forward, _currWeapon.ProjectileSpawnPoint.position, PCAM.transform.forward);   
             }
         }
@@ -429,6 +453,9 @@ public class PlayerController : MonoBehaviour
     {
         float dt = Time.fixedDeltaTime;
         Quaternion cameraYRot = CameraController.GetRotationAroundAxis(PlayerCamera.GetCameraOrientation(), Vector3.up); 
+
+        if (!_updatePlayer)
+            return;
 
         _moveInputAcc.Normalize();
         _isOnGround = Physics.SphereCast(transform.position, 
@@ -603,6 +630,8 @@ public class PlayerController : MonoBehaviour
                 {
                     case PlayerActions.Charge:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[6]); 
+
                         Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
                         if (currLinVel.magnitude > WalkMoveSpeed)
                             _rigidbody.AddForce((currLinVel.normalized * WalkMoveSpeed) - currLinVel, ForceMode.VelocityChange);
@@ -611,14 +640,19 @@ public class PlayerController : MonoBehaviour
 
                 switch (_currJumpParams.JumpType)
                 {
+                    case JumpTypes.Single:
+                        _playerSoundSource.PlayOneShot(AudioClips[3]); break;
                     case JumpTypes.Double:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[4]);
                         PCAM.PlayerAnimator.ResetControllerState();
                         PCAM.PlayerAnimator.Play("DoubleJumpRoll");
                     } break;
                     case JumpTypes.Side:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[4]);
                         PCAM.PlayerAnimator.ResetControllerState();
+
                         switch (_PIS.GetPlayerAction(0))
                         {
                             case PlayerActions.ForwardLeftSide:
@@ -633,19 +667,24 @@ public class PlayerController : MonoBehaviour
                     } break;
                     case JumpTypes.Back:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[4]);
                         PCAM.PlayerAnimator.ResetControllerState();
                         PCAM.PlayerAnimator.Play("BackflipJumpRoll");
                     } break;
                     case JumpTypes.Swing:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[5]);
                         PCAM.PlayerAnimator.ResetControllerState();
                         PCAM.PlayerAnimator.Play("WrenchSwingAnim");
                     } break;
                     case JumpTypes.Slam:
                     {
+                        _playerSoundSource.PlayOneShot(AudioClips[10]);
                         PCAM.PlayerAnimator.ResetControllerState();
                         PCAM.PlayerAnimator.Play("WrenchSlamAnim");
                     } break;
+                    case JumpTypes.Long:
+                        _playerSoundSource.PlayOneShot(AudioClips[7]); break;
                 }
             }
         }
@@ -890,6 +929,26 @@ public class PlayerController : MonoBehaviour
         
         _currDirChangeRate = DirChangeRate * 0.4f;
         _cancelFarOffGround = true;
+    }
+
+    public void HurtPlayer(float inDamage)
+    {
+        _currPlayerHealth -= inDamage;
+
+        Debug.Log(inDamage);
+        if (_currPlayerHealth <= 0.0f)
+        {
+            _updatePlayer = false;
+            PCAM.gameObject.SetActive(false);
+            PlayerCamera.FollowTarget = false;
+            _playerSoundSource.PlayOneShot(AudioClips[2]);
+
+            GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
+            Destroy(gameObject, 4.0f);   
+            Debug.Log("Skill issue!");
+        }
+        else
+            _playerSoundSource.PlayOneShot(AudioClips[8]);
     }
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)

@@ -37,9 +37,18 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     public GroundEnemyTypes GroundEnemyType;
     public NavMeshAgent _navMeshAgent;
     public GameObject ProjectilePrefab;
+    public GameObject MeleeWeapon;
+    public Material ShieldMaterial;
+    public AudioClip DeathAudioClip;
+    public AudioClip ShootAudioClip;
+    public AudioClip MeleeAudioClip;
+    public AudioClip HurtAudioClip;
 
     private IEnemy _enemy;
+    private AudioSource _enemyAudioSource;
     private PlayerController _target;
+    private Material _baseMaterial;
+    private MeshRenderer _outlineMeshRenderer;
     private float _currAttackTime = 0.0f;
     private bool IsDefending = false;
 
@@ -51,6 +60,9 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         if (!_navMeshAgent)
             throw new NullReferenceException("Could not get nav mesh agent for ground enemy.");
 
+        _outlineMeshRenderer = DamageOutline.GetComponent<MeshRenderer>();
+        _baseMaterial = _outlineMeshRenderer.material;
+        _enemyAudioSource = GetComponent<AudioSource>();
         _target = FindFirstObjectByType<PlayerController>();
         _enemy = this;
 
@@ -74,6 +86,10 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         {
             IsAttacking = false;
             IsDefending = false;
+
+            _outlineMeshRenderer.material = _baseMaterial;
+            _outlineMeshRenderer.gameObject.SetActive(false);
+            MeleeWeapon.SetActive(false);
         }
 
         if (!IsAttacking && IsPursuing)
@@ -94,8 +110,22 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
                 Destroy(gameObject, 4.0f);   
             }
+            if (DeathAudioClip)
+            {
+                GameObject gameObject = new();
+                AudioSource audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.volume = 0.2f;
+                audioSource.minDistance = 5.0f;
+                audioSource.clip = DeathAudioClip;
+                audioSource.Play();
+
+                if (!DestructionEffect)
+                    Destroy(gameObject, 4.0f);
+            }
             Destroy(gameObject);   
         }
+
+        MeleeWeapon.transform.rotation = Quaternion.AngleAxis(720.0f * dt, MeleeWeapon.transform.up) * MeleeWeapon.transform.rotation;
     }
 
     public float DamageEnemy(float inDamage)
@@ -110,6 +140,9 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 Invoke(nameof(MakeDamageOutlineInvisible), 0.25f);   
             }
 
+            if (HurtAudioClip)
+                _enemyAudioSource.PlayOneShot(HurtAudioClip);
+
             return result;
         }
         
@@ -119,12 +152,17 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     public Tuple<bool, float> Attack()
     {
         float distanceToTarget = Vector3.Distance(transform.position, _target.transform.position);
+        _outlineMeshRenderer.material = _baseMaterial;
+        _outlineMeshRenderer.gameObject.SetActive(false);
+
         if (GroundEnemyType == GroundEnemyTypes.Shooter && distanceToTarget > MeleeDistance)
         {
             float randomNum = UnityEngine.Random.Range(0.0f, 1.0f);
             if (randomNum <= DefendChance)
             {
                 IsDefending = true;
+                _outlineMeshRenderer.material = ShieldMaterial;
+                _outlineMeshRenderer.gameObject.SetActive(true);
                 Debug.Log("Defending");   
             }
             else
@@ -138,11 +176,28 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 projectile.TrajectoryPos = transform.position;
                 projectile.TrajectoryDir = dirToTarget;
 
+                if (ShootAudioClip)
+                    _enemyAudioSource.PlayOneShot(ShootAudioClip);
+
                 Debug.Log("Shooting");
             }
         }
-        else if (GroundEnemyType == GroundEnemyTypes.Shooter && distanceToTarget < MeleeDistance)
+        else if (distanceToTarget < MeleeDistance)
         {
+            Collider[] colliders = Physics.OverlapSphere(transform.position, 2.0f, 1 << LayerMask.NameToLayer("Player"));
+            if (colliders.Length > 0)
+            {
+                PlayerController pc = colliders[0].GetComponentInParent<PlayerController>();
+                if (pc)
+                {
+                    pc.HurtPlayer(AttackDamage);
+                }
+            }
+
+            if (MeleeAudioClip)
+                _enemyAudioSource.PlayOneShot(MeleeAudioClip);
+
+            MeleeWeapon.SetActive(true);
             Debug.Log("Melee");
         }
 

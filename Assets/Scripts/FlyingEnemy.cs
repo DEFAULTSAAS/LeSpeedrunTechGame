@@ -73,6 +73,7 @@ public interface IEnemy
     }
 }
 
+[Serializable]
 public enum FlyingEnemyTypes
 {
     Melee,
@@ -100,7 +101,12 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     public Vector3 SpawnPos { get; private set; }
 
     public GameObject ProjectilePrefab;
+    public GameObject MeleeWeapon;
     public FlyingEnemyTypes FlyingEnemyType;
+    public AudioClip DeathAudioClip;
+    public AudioClip ShootAudioClip;
+    public AudioClip MeleeAudioClip;
+    public AudioClip HurtAudioClip;
     
     public float OrbitHeight = 5.0f;
     public float OrbitRadius = 5.0f;
@@ -108,6 +114,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     public float MoveSpeed = 8.0f;
 
     private IEnemy _enemy;
+    private AudioSource _enemyAudioSource;
 
     private PlayerController _target;
     private Quaternion _currOrbitOrientation = Quaternion.identity;
@@ -117,6 +124,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        _enemyAudioSource = GetComponent<AudioSource>();
         _target = FindFirstObjectByType<PlayerController>();
         _enemy = this;
         CurrHealth = Health;
@@ -142,6 +150,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
         }
         else if (FlyingEnemyType == FlyingEnemyTypes.Melee && IsAttacking && !_justAttacked)
         {
+            MeleeWeapon.SetActive(true);
             _targetPos = _target.transform.position;
             _justAttacked = true;
         }
@@ -158,15 +167,33 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
             Projectile projectile = projectileGameObj.GetComponent<Projectile>();
             projectile.TrajectoryPos = transform.position;
             projectile.TrajectoryDir = dirToTarget;
+
+            if (ShootAudioClip)
+                _enemyAudioSource.PlayOneShot(ShootAudioClip);
         }
         
         float distanceToTarget = Vector3.Distance(transform.position, _targetPos);
         if (IsAttacking && distanceToTarget < 0.1f)
         {
+            Collider[] colliders = Physics.OverlapSphere(transform.position, 2.0f, 1 << LayerMask.NameToLayer("Player"));
+            if (colliders.Length > 0)
+            {
+                PlayerController pc = colliders[0].GetComponentInParent<PlayerController>();
+                if (pc)
+                {
+                    pc.HurtPlayer(AttackDamage);
+
+                    if (MeleeAudioClip)
+                        _enemyAudioSource.PlayOneShot(MeleeAudioClip);
+                }
+            }
+
             IsAttacking = false;
             _targetPos = _target.transform.position + 
                          Vector3.up * OrbitHeight + 
                          _currOrbitOrientation * Vector3.forward * OrbitRadius;
+
+            MeleeWeapon.SetActive(false);
         }
         if (!IsPursuing)
             _targetPos = SpawnPos;
@@ -184,8 +211,22 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
                 gameObject.transform.localScale = Vector3.one * 0.5f;
                 Destroy(gameObject, 4.0f);   
             }
+            if (DeathAudioClip)
+            {
+                GameObject gameObject = new();
+                AudioSource audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.volume = 0.2f;
+                audioSource.minDistance = 5.0f;
+                audioSource.clip = DeathAudioClip;
+                audioSource.Play();
+
+                if (!DestructionEffect)
+                    Destroy(gameObject, 4.0f);
+            }
             Destroy(gameObject);   
         }
+
+        MeleeWeapon.transform.rotation = Quaternion.AngleAxis(720.0f * dt, MeleeWeapon.transform.up) * MeleeWeapon.transform.rotation;
     }
 
     public float DamageEnemy(float inDamage)
@@ -197,6 +238,8 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
             DamageOutline.SetActive(true);
             Invoke(nameof(MakeDamageOutlineInvisible), 0.5f);   
         }
+        if (HurtAudioClip)
+            _enemyAudioSource.PlayOneShot(HurtAudioClip);
 
         return result;
     }

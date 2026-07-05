@@ -7,7 +7,7 @@ public class BombLauncher : MonoBehaviour, IWeapon
     [field : SerializeField] public float FireDelay {get; private set;}
     public float LastFireTime {get; set;}
     [field : SerializeField] public Transform ProjectileSpawnPoint {get; set;}
-    [field : SerializeField] public ProjectileTypes ProjectileType {get;}
+    [field : SerializeField] public ProjectileTypes ProjectileType {get; private set; }
 
     public Animator WeaponAnimator;
     public GameObject ProjectilePrefab;
@@ -40,7 +40,7 @@ public class BombLauncher : MonoBehaviour, IWeapon
         if (!float.IsPositiveInfinity(inFireDir.x))
         {
             _targetPos.position = inFireDir;
-            projectile.Target = _targetPos;   
+            projectile.Target = _targetPos;
         }
         else
             projectile.Target = null;

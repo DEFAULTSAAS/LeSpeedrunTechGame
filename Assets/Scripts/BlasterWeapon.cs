@@ -22,12 +22,13 @@ public interface IWeapon
 
 public class BlasterWeapon : MonoBehaviour, IWeapon
 {
+    public float CurrPlayerSpeed {get; set;}
     [field : SerializeField] public float Damage {get; private set;}
     [field : SerializeField] public float ProjectileSpeed {get; private set;}
     [field : SerializeField] public float FireDelay {get; private set;}
     public float LastFireTime {get; set;}
-    [field : SerializeField] public Transform ProjectileSpawnPoint {get; set;}
-    [field : SerializeField] public ProjectileTypes ProjectileType {get;}
+    [field : SerializeField] public Transform ProjectileSpawnPoint { get; set; }
+    [field : SerializeField] public ProjectileTypes ProjectileType { get; private set; }
 
     public GameObject ProjectilePrefab;
 
@@ -59,6 +60,6 @@ public class BlasterWeapon : MonoBehaviour, IWeapon
         projectile.TrajectoryDir = inTrajectoryDir;
         projectile.Target = inTarget;
         projectile.Damage = Damage;
-        projectile.Speed = ProjectileSpeed;
+        projectile.Speed = ProjectileSpeed + CurrPlayerSpeed;
     }
 }
