@@ -13,10 +13,13 @@ public class BombLauncher : MonoBehaviour, IWeapon
     public GameObject ProjectilePrefab;
 
     private Transform _targetPos;
+    private AudioSource _weaponSound;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         _targetPos = new GameObject().transform;
+        _weaponSound = GetComponent<AudioSource>();
     }
 
     // Update is called once per frame
@@ -29,6 +32,7 @@ public class BombLauncher : MonoBehaviour, IWeapon
     {
         WeaponAnimator.ResetControllerState();
         WeaponAnimator.Play("FireBombLauncher");
+        _weaponSound.Play();
 
         GameObject projectileGameObj = Instantiate(ProjectilePrefab, ProjectileSpawnPoint.position, Quaternion.FromToRotation(Vector3.forward, ProjectileSpawnPoint.forward));
         Projectile projectile = projectileGameObj.GetComponent<Projectile>();
@@ -44,6 +48,6 @@ public class BombLauncher : MonoBehaviour, IWeapon
         projectile.TrajectoryPos = inTrajectoryPos;
         projectile.TrajectoryDir = inTrajectoryDir;
         projectile.Damage = Damage;
-        projectile.Speed = ProjectileSpeed;
+        projectile.Speed = (inTrajectoryDir.x > ProjectileSpeed) ? inTrajectoryDir.x : ProjectileSpeed;
     }
 }

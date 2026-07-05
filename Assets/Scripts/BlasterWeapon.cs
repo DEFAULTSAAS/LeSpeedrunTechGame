@@ -32,11 +32,13 @@ public class BlasterWeapon : MonoBehaviour, IWeapon
     public GameObject ProjectilePrefab;
 
     private IWeapon _weapon;
+    private AudioSource _weaponSound;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         _weapon = this;
+        _weaponSound = GetComponent<AudioSource>();
     }
 
     // Update is called once per frame
@@ -47,6 +49,9 @@ public class BlasterWeapon : MonoBehaviour, IWeapon
 
     public void Fire(Vector3 inFireDir, Vector3 inTrajectoryPos, Vector3 inTrajectoryDir, Transform inTarget)
     {
+        _weaponSound.pitch = Random.Range(0.9f, 1.1f);
+        _weaponSound.Play();
+
         GameObject projectileGameObj = Instantiate(ProjectilePrefab, ProjectileSpawnPoint.position, Quaternion.FromToRotation(Vector3.forward, inFireDir));
         Projectile projectile = projectileGameObj.GetComponent<Projectile>();
         

@@ -25,6 +25,8 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     [field : SerializeField] public float StopSeekingTime { get; private set; }
     [field : SerializeField] public Vector2 MinMaxAttackDelay { get; private set; }
     [field : SerializeField] public Vector2 MinMaxDetectionRange { get; private set; }
+    [field : SerializeField] public GameObject DamageOutline { get; private set; }
+    [field : SerializeField] public GameObject DestructionEffect { get; private set; }
     public Vector3 SpawnPos { get; private set; }
 
     public float MoveSpeed = 5.0f;
@@ -52,6 +54,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         _target = FindFirstObjectByType<PlayerController>();
         _enemy = this;
 
+        CurrHealth = Health;
         _navMeshAgent.speed = MoveSpeed;
         _navMeshAgent.height = JumpHeight;
     }
@@ -85,7 +88,32 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         IsPursuing = _enemy.TickSeekLogic(dt, distanceToTarget);
 
         if (CurrHealth < 0.0f)
-            Destroy(gameObject);
+        {
+            if (DestructionEffect)
+            {
+                GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
+                Destroy(gameObject, 4.0f);   
+            }
+            Destroy(gameObject);   
+        }
+    }
+
+    public float DamageEnemy(float inDamage)
+    {
+        if (!IsDefending)
+        {
+            CurrHealth -= inDamage;
+            float result = inDamage;
+            if (DamageOutline)
+            {
+                DamageOutline.SetActive(true);
+                Invoke(nameof(MakeDamageOutlineInvisible), 0.25f);   
+            }
+
+            return result;
+        }
+        
+        return 0.0f;
     }
 
     public Tuple<bool, float> Attack()
@@ -120,5 +148,10 @@ public class GroundEnemy : MonoBehaviour, IEnemy
 
         _currAttackTime = 0.0f;
         return new (true, 0.0f);
+    }
+
+    private void MakeDamageOutlineInvisible()
+    {
+        DamageOutline.SetActive(false);
     }
 }

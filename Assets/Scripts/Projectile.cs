@@ -16,12 +16,15 @@ public class Projectile : MonoBehaviour
     public ProjectileTypes ProjectileType;
     public Transform Target = null;
     public AnimationCurve BombHeightCurve;
+    public GameObject ExplosionPrefab;
+    public AudioClip ExplosionSoundClip;
     public float Speed = 5.0f;
     public float Damage = 5.0f;
     public float BombTime = 1.5f;
     public float BombHeight = 2.0f;
     public float Timeout = 10.0f;
 
+    private Transform _visRot;
     private Vector3 _spawnTrajDiff;
     private Vector3 _targetPos;
     private float _currBombTime;
@@ -53,6 +56,12 @@ public class Projectile : MonoBehaviour
                 _currBombHeight *= reductionFactor;
             }
         }
+
+        _visRot = transform.GetChild(0);
+        if (_visRot && ProjectileType == ProjectileTypes.Bomb)
+        {
+            _visRot.forward = new Vector3(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f)).normalized;
+        }
     }
 
     private float _currBombTimeAcc = 0.0f;
@@ -82,9 +91,11 @@ public class Projectile : MonoBehaviour
                     transform.position += transform.forward * Speed * dt;
                     
                     Vector3 targetPos = Vector3.Project(transform.position - SpawnPos, TrajectoryDir);
-                    targetPos += _spawnTrajDiff;
                     targetPos = SpawnPos + targetPos;
+                    targetPos += _spawnTrajDiff;
                     transform.position += (targetPos - transform.position) * Speed * dt;
+
+                    Debug.Log(targetPos - transform.position);
                 }
             } break;
             case ProjectileTypes.Bomb:
@@ -111,19 +122,37 @@ public class Projectile : MonoBehaviour
                 _currBombTimeAcc += dt;
             } break;
         }
+
+        if (_visRot && ProjectileType == ProjectileTypes.Bomb)
+        {
+            _visRot.rotation = Quaternion.AngleAxis(180.0f * dt, _visRot.forward) * _visRot.rotation;
+        }
     }
 
     void OnCollisionEnter(Collision collision)
     {
+        if (ExplosionSoundClip)
+        {
+            GameObject gameObject = new();
+            gameObject.transform.position = transform.position;
+            
+            AudioSource explosionSound = gameObject.AddComponent<AudioSource>();
+            explosionSound.clip = ExplosionSoundClip;
+            explosionSound.volume = 0.2f;
+            explosionSound.minDistance = 5.0f;
+            explosionSound.Play();
+
+            Destroy(gameObject, 4.0f);
+        }
+
         if (ProjectileType == ProjectileTypes.Bomb)
         {
-            Collider[] playerCollider = Physics.OverlapSphere(transform.position, 1.0f, 1 << LayerMask.NameToLayer("Player"));
+            Collider[] playerCollider = Physics.OverlapSphere(transform.position, 1.25f, 1 << LayerMask.NameToLayer("Player"));
             if (playerCollider.Length > 0)
             {
                 PlayerController pc = playerCollider[0].gameObject.transform.parent.GetComponent<PlayerController>();
-                if (pc && (Time.time - TimeSpawned) <= 0.02f)
+                if (pc && (Time.time - TimeSpawned) <= 0.125)
                 {
-                    Debug.Log("Yipeee");
                     pc.RedirectPlayerVelocity();
                 }
             }
@@ -138,6 +167,12 @@ public class Projectile : MonoBehaviour
                 }
             }
 
+            if (ExplosionPrefab)
+            {
+                GameObject explosion = Instantiate(ExplosionPrefab, transform.position, Quaternion.identity);
+                explosion.transform.localScale = Vector3.one * 0.5f;
+                Destroy(explosion, 4.0f);
+            }
             Destroy(gameObject);
         }
     }

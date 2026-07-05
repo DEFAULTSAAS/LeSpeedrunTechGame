@@ -18,6 +18,8 @@ public interface IEnemy
     public Vector2 MinMaxAttackDelay { get; }
     public Vector2 MinMaxDetectionRange { get; }
     public Vector3 SpawnPos { get; }
+    public GameObject DamageOutline { get; }
+    public GameObject DestructionEffect { get; }
 
     public Tuple<bool, float> TickAttackLogic(float inDT, float inTargetDist, bool inIsAttacking = true)
     {
@@ -93,6 +95,8 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     [field : SerializeField] public float StopSeekingTime { get; private set; }
     [field : SerializeField] public Vector2 MinMaxAttackDelay { get; private set; }
     [field : SerializeField] public Vector2 MinMaxDetectionRange { get; private set; }
+    [field : SerializeField] public GameObject DamageOutline { get; private set; }
+    [field : SerializeField] public GameObject DestructionEffect { get; private set; }
     public Vector3 SpawnPos { get; private set; }
 
     public GameObject ProjectilePrefab;
@@ -171,10 +175,39 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
         IsPursuing = _enemy.TickSeekLogic(dt, distanceToTarget);
 
         transform.position += (_targetPos - transform.position).normalized * MoveSpeed * dt;
+
+        if (CurrHealth < 0.0f)
+        {
+            if (DestructionEffect)
+            {
+                GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
+                gameObject.transform.localScale = Vector3.one * 0.5f;
+                Destroy(gameObject, 4.0f);   
+            }
+            Destroy(gameObject);   
+        }
+    }
+
+    public float DamageEnemy(float inDamage)
+    {
+        CurrHealth -= inDamage;
+        float result = inDamage;
+        if (DamageOutline)
+        {
+            DamageOutline.SetActive(true);
+            Invoke(nameof(MakeDamageOutlineInvisible), 0.5f);   
+        }
+
+        return result;
     }
 
     public Tuple<bool, float> Attack()
     {
         return new(true, 0.0f);
+    }
+    
+    private void MakeDamageOutlineInvisible()
+    {
+        DamageOutline.SetActive(false);
     }
 }

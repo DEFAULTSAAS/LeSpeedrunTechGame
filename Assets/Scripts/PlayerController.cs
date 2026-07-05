@@ -227,6 +227,7 @@ public class PlayerController : MonoBehaviour
     public CameraController PlayerCamera;
     public CameraPivot PlayerCameraPivot;
     public BombLauncher PlayerBombLauncher;
+    public BlasterWeapon PlayerBlasterWeapon;
     
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
@@ -255,7 +256,7 @@ public class PlayerController : MonoBehaviour
     public float GroundSnapDistance = 0.05f;
     public float GroundSnapSpeed = 10.0f;
 
-    private BlasterWeapon _blasterWeapon;
+    private IWeapon _currWeapon;
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
@@ -264,6 +265,8 @@ public class PlayerController : MonoBehaviour
     private InputAction _swingInputAction;
     private InputAction _attackInputAction;
     private InputAction _aimInputAction;
+    private InputAction _selectFirstWeapon;
+    private InputAction _selectSecondWeapon;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -305,9 +308,7 @@ public class PlayerController : MonoBehaviour
         {
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
-        
-        _blasterWeapon = GetComponent<BlasterWeapon>();
-        _blasterWeapon.ProjectileSpawnPoint = transform;
+        _currWeapon = PlayerBlasterWeapon;
 
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _farOffGroundCastDist = (PCAM.MainPlayerCollider.height / 2.0f) + FarOffGroundDistance;
@@ -328,6 +329,8 @@ public class PlayerController : MonoBehaviour
         _swingInputAction = InputSystem.actions.FindAction("Swing");
         _attackInputAction = InputSystem.actions.FindAction("Attack");
         _aimInputAction = InputSystem.actions.FindAction("Aim");
+        _selectFirstWeapon = InputSystem.actions.FindAction("Previous");
+        _selectSecondWeapon = InputSystem.actions.FindAction("Next");
 
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
@@ -363,39 +366,63 @@ public class PlayerController : MonoBehaviour
         Vector2 moveInput = _moveInputAction.ReadValue<Vector2>();
         _moveInputAcc += moveInput;
 
+        if (_selectFirstWeapon.WasPressedThisFrame())
+        {
+            PlayerBlasterWeapon.gameObject.SetActive(true);
+            PlayerBombLauncher.gameObject.SetActive(false);
+            _currWeapon = PlayerBlasterWeapon;   
+        }
+        if (_selectSecondWeapon.WasPressedThisFrame())
+        {
+            PlayerBlasterWeapon.gameObject.SetActive(false);
+            PlayerBombLauncher.gameObject.SetActive(true);
+            _currWeapon = PlayerBombLauncher;   
+        }
+
         _PIS.ProcessInputActionStates();
         if (_attackInputAction.IsPressed() && _isStrafing)
         {
-            // Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
-            // Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
-            
-            // RaycastHit enemyHit;
-            // bool aimingAtEnemy = Physics.SphereCast(cameraCentre, 0.33f, PlayerCamera.transform.forward, out enemyHit, 1000.0f, 1 << LayerMask.NameToLayer("Enemy"));
-            // Debug.Log(aimingAtEnemy);
-
-            // if (!aimingAtEnemy)
-            //     ((IWeapon)_blasterWeapon).TryFire(PlayerCamera.transform.forward, PlayerCamera.transform.position + trajectoryStartPoint, PlayerCamera.transform.forward);
-            // else
-            //     ((IWeapon)_blasterWeapon).TryFire(Vector3.zero, Vector3.zero, Vector3.zero, enemyHit.transform);
-
+            Vector3 trajectoryStartPoint = Vector3.Project(transform.position - PlayerCamera.transform.position, PlayerCamera.transform.forward);
             Vector3 cameraCentre = PlayerCamera.GetCamera().ViewportToWorldPoint(new Vector2(0.5f, 0.5f));
             Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
+
+            if (_currWeapon.ProjectileType == ProjectileTypes.Bullet)
+            {
+                RaycastHit enemyHit;
+                bool aimingAtEnemy = Physics.SphereCast(cameraCentre, 0.33f, PlayerCamera.transform.forward, out enemyHit, 1000.0f, 1 << LayerMask.NameToLayer("Enemy"));
+
+                if (!aimingAtEnemy)
+                    _currWeapon.TryFire(PlayerCamera.transform.forward, PlayerCamera.transform.position + trajectoryStartPoint, PlayerCamera.transform.forward);
+                else
+                    _currWeapon.TryFire(Vector3.zero, Vector3.zero, Vector3.zero, enemyHit.transform);    
+            }
             
-            RaycastHit groundHit;
-            bool aimingAtGround = Physics.Raycast(cameraCentre, PlayerCamera.transform.forward, out groundHit, 1000.0f, _playerRaycastMask);
+            if (_currWeapon.ProjectileType == ProjectileTypes.Bomb)
+            {
+                RaycastHit groundHit;
+                bool aimingAtGround = Physics.Raycast(cameraCentre, PlayerCamera.transform.forward, out groundHit, 1000.0f, _playerRaycastMask);
 
-            if (aimingAtGround)
-                hitPoint = groundHit.point;
+                if (aimingAtGround)
+                    hitPoint = groundHit.point;
 
-            ((IWeapon)PlayerBombLauncher).TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);
+                _currWeapon.TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);   
+            }
         }
         else if (_attackInputAction.IsPressed())
         {
+            Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
             Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
-            ((IWeapon)PlayerBombLauncher).TryFire(hitPoint, Vector3.one * 3.0f, Vector3.zero);
+
+            if (_currWeapon.ProjectileType == ProjectileTypes.Bomb)
+                _currWeapon.TryFire(hitPoint, Vector3.one * 3.0f, Vector3.one * currLinVel.magnitude);
+            else if (_currWeapon.ProjectileType == ProjectileTypes.Bullet)
+            {
+                _currWeapon.TryFire(PCAM.transform.forward, _currWeapon.ProjectileSpawnPoint.position, PCAM.transform.forward);   
+            }
         }
     }
 
+    private bool _cancelFarOffGround;
     private float _currMoveSpeed = 1.0f;
     private float _currDirChangeRate = 1.0f;
     void FixedUpdate()
@@ -414,7 +441,7 @@ public class PlayerController : MonoBehaviour
         
         bool fakeIsOnGround = false;
         bool stopCharge = _jumpManager.CurrJump.JumpType == JumpTypes.Charge && _attackInputAction.IsPressed();
-        bool isFarOffGround = !Physics.Raycast(transform.position, -Vector3.up, _farOffGroundCastDist, _playerRaycastMask, QueryTriggerInteraction.Ignore);
+        bool isFarOffGround = !Physics.Raycast(transform.position, -Vector3.up, _farOffGroundCastDist, _playerRaycastMask, QueryTriggerInteraction.Ignore) && !_cancelFarOffGround;
         
         if ((_isOnGround && _currJumpParams.HittingGroundCancelsJump && _jumpManager.CurrJump.GetJumpTime() > 0.1f) || stopCharge)
         {
@@ -428,6 +455,7 @@ public class PlayerController : MonoBehaviour
                 _playerMoveDir = currLinVel.normalized;
                 _currMoveSpeed = currLinVel.magnitude;
             }
+            _cancelFarOffGround = false;
         }
         else if (_jumpManager.CurrJump.GetRemainingJumpTime() < 0.0f)
         {
@@ -442,6 +470,7 @@ public class PlayerController : MonoBehaviour
                 _playerMoveDir = currLinVel.normalized;
                 _currMoveSpeed = currLinVel.magnitude;
             }
+            _cancelFarOffGround = false;
         }   
         
         if (_isOnGround && _jumpManager.CurrJump.GetJumpTime() <= 0.0f)
@@ -855,7 +884,12 @@ public class PlayerController : MonoBehaviour
 
         Vector3 newVec = Quaternion.Lerp(Quaternion.FromToRotation(Vector3.forward, currVelXZNorm), 
                                          Quaternion.FromToRotation(currVelXZNorm, Vector3.up), 0.75f) * currVelXZ;
+        
         newVec.y += currVel.y;
+        _rigidbody.AddForce(newVec, ForceMode.VelocityChange);
+        
+        _currDirChangeRate = DirChangeRate * 0.4f;
+        _cancelFarOffGround = true;
     }
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)
