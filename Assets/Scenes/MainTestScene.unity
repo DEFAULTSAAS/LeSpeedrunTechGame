@@ -131,7 +131,7 @@ GameObject:
   - component: {fileID: 94812952}
   - component: {fileID: 94812951}
   m_Layer: 0
-  m_Name: Text (TMP)
+  m_Name: TutorialText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1069,7 +1069,7 @@ GameObject:
   - component: {fileID: 387515961}
   - component: {fileID: 387515960}
   m_Layer: 0
-  m_Name: Text (TMP) (1)
+  m_Name: WinText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4134,7 +4134,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1504783141}
   m_Layer: 0
-  m_Name: GameObject (1)
+  m_Name: WinLocation
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5095,7 +5095,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TileManager
   Player: {fileID: 559890492}
-  WinLocation: {fileID: 0}
+  WinLocation: {fileID: 1504783141}
   TilePrefabs:
   - {fileID: 5521623035504498718, guid: e10cbbc5de92ff01b8755d7f8923b2ed, type: 3}
   - {fileID: 8860437242205371041, guid: b328ebd8acdfdd6d2a79645e8f3b2484, type: 3}
