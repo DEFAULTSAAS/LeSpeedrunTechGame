@@ -974,6 +974,11 @@ public class PlayerController : MonoBehaviour
             _playerSoundSource.PlayOneShot(AudioClips[8]);
     }
 
+    public void ResetPlayerHealth()
+    {
+        _currPlayerHealth = Health;
+    }    
+
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)
     {
         float fOfT = inCurve.Evaluate(inT);

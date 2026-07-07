@@ -13,6 +13,7 @@ public struct TileData
 public class TileManager : MonoBehaviour
 {
     public int NumberOfTilesToWin {get; private set;}
+    public GameManager GeneralGameManager;
     public Transform Player;
     public Transform WinLocation;
     public GameObject[] TilePrefabs;
@@ -80,12 +81,24 @@ public class TileManager : MonoBehaviour
                 tileCompleteCounter++;
         }
 
-        if (tileCompleteCounter >= NumberOfTilesToWin)
+        if (tileCompleteCounter >= NumberOfTilesToWin && !GeneralGameManager.PlayerHasFinished)
         {
             Debug.Log("You Win!");
-            Player.transform.position = WinLocation.position;
-            NumberOfTilesToWin = 1000; 
+            GeneralGameManager.PlayerHasFinished = true;
+            Player.transform.position = WinLocation.position; 
         }
+    }
+
+    public int GetTilesCompleted()
+    {
+        int tileCompleteCounter = 0;
+        for (int i = 0; i < LevelLayout.Length; i++)
+        {
+            if (_tileCompleted[i])
+                tileCompleteCounter++;
+        }
+
+        return tileCompleteCounter;
     }
 
     public void OnTileComplete(int inGridPos)
