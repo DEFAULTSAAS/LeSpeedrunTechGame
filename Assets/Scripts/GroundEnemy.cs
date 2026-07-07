@@ -17,7 +17,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     public float CurrAttackDelay {get; set;}
     public float CurrAttackAcc {get; set;}
     public float CurrOutOfRangeAcc {get; set;}
-
+    [field : SerializeField] public EnemySpawner CurrEnemySpawner { get; set; }
 
     [field : SerializeField] public float Health { get; private set; }
     [field : SerializeField] public float AttackDamage { get; private set; }
@@ -69,6 +69,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
         CurrHealth = Health;
         _navMeshAgent.speed = MoveSpeed;
         _navMeshAgent.height = JumpHeight;
+        SpawnPos = transform.position;
     }
 
     // Update is called once per frame
@@ -163,7 +164,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 IsDefending = true;
                 _outlineMeshRenderer.material = ShieldMaterial;
                 _outlineMeshRenderer.gameObject.SetActive(true);
-                Debug.Log("Defending");   
+                //Debug.Log("Defending");   
             }
             else
             {
@@ -179,7 +180,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 if (ShootAudioClip)
                     _enemyAudioSource.PlayOneShot(ShootAudioClip);
 
-                Debug.Log("Shooting");
+                //Debug.Log("Shooting");
             }
         }
         else if (distanceToTarget < MeleeDistance)
@@ -198,7 +199,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 _enemyAudioSource.PlayOneShot(MeleeAudioClip);
 
             MeleeWeapon.SetActive(true);
-            Debug.Log("Melee");
+            //Debug.Log("Melee");
         }
 
         _currAttackTime = 0.0f;
@@ -208,5 +209,11 @@ public class GroundEnemy : MonoBehaviour, IEnemy
     private void MakeDamageOutlineInvisible()
     {
         DamageOutline.SetActive(false);
+    }
+
+    void OnDestroy()
+    {
+        if (CurrEnemySpawner)
+            CurrEnemySpawner.OnEnemyDestroyed();
     }
 }

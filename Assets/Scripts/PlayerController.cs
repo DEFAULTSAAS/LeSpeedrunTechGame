@@ -1,8 +1,9 @@
 using System;
+using GLTFast.Schema;
 using Unity.VisualScripting;
-using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 [Serializable]
 public enum JumpMethods
@@ -262,6 +263,7 @@ public class PlayerController : MonoBehaviour
 
     private IWeapon _currWeapon;
     private AudioSource _playerSoundSource;
+    private MeshRenderer _localMeshRenderer;
 
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
@@ -272,6 +274,7 @@ public class PlayerController : MonoBehaviour
     private InputAction _aimInputAction;
     private InputAction _selectFirstWeapon;
     private InputAction _selectSecondWeapon;
+    private InputAction _interactInputAction;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -315,8 +318,10 @@ public class PlayerController : MonoBehaviour
         {
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
+        
         _currWeapon = PlayerBlasterWeapon;
         _playerSoundSource = GetComponent<AudioSource>();
+        _localMeshRenderer = PCAM.transform.Find("Anim").GetComponent<MeshRenderer>();
         _currPlayerHealth = Health;
 
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
@@ -340,6 +345,7 @@ public class PlayerController : MonoBehaviour
         _aimInputAction = InputSystem.actions.FindAction("Aim");
         _selectFirstWeapon = InputSystem.actions.FindAction("Previous");
         _selectSecondWeapon = InputSystem.actions.FindAction("Next");
+        _interactInputAction = InputSystem.actions.FindAction("Interact");
 
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
@@ -375,10 +381,16 @@ public class PlayerController : MonoBehaviour
         Vector2 moveInput = _moveInputAction.ReadValue<Vector2>();
         _moveInputAcc += moveInput;
 
+        if (_interactInputAction.WasPerformedThisFrame())
+        {
+            Debug.Log("Reload");
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
         if (!_updatePlayer)
             return;
 
-        if (_selectFirstWeapon.WasPressedThisFrame())
+        if (_selectFirstWeapon.WasPressedThisFrame() && _currWeapon != PlayerBlasterWeapon)
         {
             PlayerBlasterWeapon.gameObject.SetActive(true);
             PlayerBombLauncher.gameObject.SetActive(false);
@@ -386,12 +398,12 @@ public class PlayerController : MonoBehaviour
 
             _playerSoundSource.PlayOneShot(AudioClips[0]);   
         }
-        if (_selectSecondWeapon.WasPressedThisFrame())
+        if (_selectSecondWeapon.WasPressedThisFrame() && _currWeapon != PlayerBombLauncher)
         {
             PlayerBlasterWeapon.gameObject.SetActive(false);
             PlayerBombLauncher.gameObject.SetActive(true);
-            PlayerBombLauncher.WeaponAnimator.StopPlayback();
-            //PlayerBombLauncher.WeaponAnimator.ResetControllerState();
+            PlayerBombLauncher.WeaponAnimator.ResetControllerState();
+            PlayerBombLauncher.WeaponAnimator.Update(0.0f);
             _currWeapon = PlayerBombLauncher;   
 
             _playerSoundSource.PlayOneShot(AudioClips[1]);
@@ -431,7 +443,7 @@ public class PlayerController : MonoBehaviour
         }
         else if (actionInputPressed)
         {
-            Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
+            Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f; currLinVel *= 1.25f;
             Vector3 hitPoint = Vector3.one * float.PositiveInfinity;
 
             if (_currWeapon.ProjectileType == ProjectileTypes.Bomb)
@@ -509,6 +521,7 @@ public class PlayerController : MonoBehaviour
         PlayerCameraPivot.InStrafeMode = _isStrafing;
         if (_isOnGround && _aimInputAction.IsPressed() && _jumpManager.CurrJump.GetRemainingJumpTime() == 0.0f)
         {
+            cameraYRot = CameraController.GetRotationAroundAxis(PlayerCamera.transform.rotation, Vector3.up); 
             if (stopCharge)
             {
                 Vector3 currLinVel = _rigidbody.linearVelocity; currLinVel.y = 0.0f;
@@ -517,11 +530,13 @@ public class PlayerController : MonoBehaviour
                 _currMoveSpeed = currLinVel.magnitude;
             }
 
+            _localMeshRenderer.enabled = false;
             PlayerCamera.EnableFreeFly = true;
             PlayerCamera.CanMove = false;
         }
         else
-        {
+        {    
+            _localMeshRenderer.enabled = true;
             PlayerCamera.EnableFreeFly = false;
             PlayerCamera.CanMove = true;
         }
@@ -590,7 +605,7 @@ public class PlayerController : MonoBehaviour
                     } break;
                     case PlayerActions.Charge:
                     {
-                        _nextJumpParams = ChargeJumpParams;
+                        _nextJumpParams = _isOnGround ? ChargeJumpParams : _nextJumpParams;
                     } break;
                     case PlayerActions.Swing:
                     {
@@ -618,6 +633,13 @@ public class PlayerController : MonoBehaviour
                 jumpTriggered = !noJumpInput ? _jumpManager.StartJump(_nextJumpParams) : false;
                 _currJumpParams = jumpTriggered ? _nextJumpParams : _currJumpParams;
             }
+            else if (!_isOnGround && isFarOffGround && _PIS.GetPlayerAction(0) == PlayerActions.Swing)
+            {
+                _nextJumpParams = SlamJumpParams;
+                jumpTriggered = _jumpManager.StartJump(_nextJumpParams);
+                _currJumpParams = jumpTriggered ? _nextJumpParams : _currJumpParams;
+            }
+
             if (jumpTriggered)
             {
                 _isFirstJumpUpdate = true;
@@ -675,6 +697,7 @@ public class PlayerController : MonoBehaviour
                     {
                         _playerSoundSource.PlayOneShot(AudioClips[5]);
                         PCAM.PlayerAnimator.ResetControllerState();
+                        PCAM.PlayerAnimator.Update(0.0f);
                         PCAM.PlayerAnimator.Play("WrenchSwingAnim");
                     } break;
                     case JumpTypes.Slam:
@@ -923,7 +946,7 @@ public class PlayerController : MonoBehaviour
 
         Vector3 newVec = Quaternion.Lerp(Quaternion.FromToRotation(Vector3.forward, currVelXZNorm), 
                                          Quaternion.FromToRotation(currVelXZNorm, Vector3.up), 0.75f) * currVelXZ;
-        
+
         newVec.y += currVel.y;
         _rigidbody.AddForce(newVec, ForceMode.VelocityChange);
         

@@ -20,6 +20,7 @@ public class BombLauncher : MonoBehaviour, IWeapon
     {
         _targetPos = new GameObject().transform;
         _weaponSound = GetComponent<AudioSource>();
+        WeaponAnimator.writeDefaultValuesOnDisable = true;
     }
 
     // Update is called once per frame

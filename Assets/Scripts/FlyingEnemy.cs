@@ -10,7 +10,8 @@ public interface IEnemy
     public float CurrAttackDelay { get; set; }
     public float CurrAttackAcc { get; set; }
     public float CurrOutOfRangeAcc { get; set; } 
-    
+    public EnemySpawner CurrEnemySpawner { get; set; }
+
     public float Health {get;}
     public float AttackDamage { get; }
     public float MaxAttackRange { get; }
@@ -31,7 +32,7 @@ public interface IEnemy
             if (inTargetDist < MaxAttackRange)
                 CurrAttackAcc += inDT;
 
-            if (CurrAttackAcc >= CurrAttackDelay)
+            if (CurrAttackAcc > CurrAttackDelay)
             {
                 var result = Attack();
                 isAttacking = result.Item1;
@@ -89,6 +90,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     public float CurrAttackDelay {get; set;}
     public float CurrAttackAcc {get; set;}
     public float CurrOutOfRangeAcc {get; set;}
+    [field : SerializeField] public EnemySpawner CurrEnemySpawner { get; set; }
 
     [field : SerializeField] public float Health { get; private set; }
     [field : SerializeField] public float AttackDamage { get; private set; }
@@ -128,6 +130,7 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
         _target = FindFirstObjectByType<PlayerController>();
         _enemy = this;
         CurrHealth = Health;
+        SpawnPos = transform.position;
     }
 
     // Update is called once per frame
@@ -252,5 +255,11 @@ public class FlyingEnemy : MonoBehaviour, IEnemy
     private void MakeDamageOutlineInvisible()
     {
         DamageOutline.SetActive(false);
+    }
+
+    void OnDestroy()
+    {
+        if (CurrEnemySpawner)
+            CurrEnemySpawner.OnEnemyDestroyed();
     }
 }
