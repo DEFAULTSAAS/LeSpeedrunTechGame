@@ -1,9 +1,11 @@
 using System;
 using GLTFast.Schema;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 [Serializable]
 public enum JumpMethods
@@ -231,9 +233,11 @@ public class PlayerController : MonoBehaviour
     public BombLauncher PlayerBombLauncher;
     public BlasterWeapon PlayerBlasterWeapon;
     public GameObject DestructionEffect;
+    public GameObject HealthBar;
     public AudioClip[] AudioClips;
     
     public float Health = 100.0f;
+    public float ShowHealthBarTime = 3.0f;
     public float WalkMoveSpeed = 3.0f;
     public float JumpMoveSpeedFactor = 0.9f;
     public float InAirMoveSpeedFactor = 0.2f;
@@ -265,6 +269,9 @@ public class PlayerController : MonoBehaviour
     private AudioSource _playerSoundSource;
     private MeshRenderer _localMeshRenderer;
 
+    private Slider _playerHealthSlider;
+    private TextMeshProUGUI _playerHealthText;
+
     private InputAction _moveInputAction;
     private InputAction _jumpInputAction;
     private InputAction _crouchInputAction;
@@ -275,6 +282,7 @@ public class PlayerController : MonoBehaviour
     private InputAction _selectFirstWeapon;
     private InputAction _selectSecondWeapon;
     private InputAction _interactInputAction;
+    private InputAction _showHealthInputAction;
     private PlayerInputSystem _PIS;
 
     private JumpManager _jumpManager = new();
@@ -298,6 +306,7 @@ public class PlayerController : MonoBehaviour
     private float _momentumMag;
     private float _onGroundSphereCastDist;
     private float _farOffGroundCastDist;
+    private float _currHealthBarShowTime = float.PositiveInfinity;
 
     private int _playerRaycastMask = 0;
 
@@ -324,6 +333,9 @@ public class PlayerController : MonoBehaviour
         _localMeshRenderer = PCAM.transform.Find("Anim").GetComponent<MeshRenderer>();
         _currPlayerHealth = Health;
 
+        _playerHealthSlider = HealthBar.GetComponent<Slider>();
+        _playerHealthText = HealthBar.GetComponentInChildren<TextMeshProUGUI>();
+
         _playerRaycastMask = GameUtils.CollisionLayerToRaycastMask(LayerMask.NameToLayer("Player"));
         _farOffGroundCastDist = (PCAM.MainPlayerCollider.height / 2.0f) + FarOffGroundDistance;
         _onGroundSphereCastDist = (PCAM.MainPlayerCollider.height / 2.0f) - PCAM.MainPlayerCollider.radius + OnGroundRadiusReduction;
@@ -346,6 +358,7 @@ public class PlayerController : MonoBehaviour
         _selectFirstWeapon = InputSystem.actions.FindAction("Previous");
         _selectSecondWeapon = InputSystem.actions.FindAction("Next");
         _interactInputAction = InputSystem.actions.FindAction("Interact");
+        _showHealthInputAction = InputSystem.actions.FindAction("ShowHealth");
 
         _PIS = PlayerInputSystem.MainPISInstance;
         _moveInputAction.performed += _PIS.HandleInputCallback;
@@ -387,8 +400,16 @@ public class PlayerController : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
-        if (!_updatePlayer)
+        if (!_updatePlayer || Cursor.lockState != CursorLockMode.Locked)
             return;
+
+        _currHealthBarShowTime += dt;
+        _currHealthBarShowTime = _showHealthInputAction.WasPerformedThisFrame() ? 0.0f : _currHealthBarShowTime;
+        
+        if (_currHealthBarShowTime < ShowHealthBarTime && Cursor.lockState == CursorLockMode.Locked)
+            HealthBar.SetActive(true);
+        else
+            HealthBar.SetActive(false);
 
         if (_selectFirstWeapon.WasPressedThisFrame() && _currWeapon != PlayerBlasterWeapon)
         {
@@ -957,6 +978,10 @@ public class PlayerController : MonoBehaviour
     public void HurtPlayer(float inDamage)
     {
         _currPlayerHealth -= inDamage;
+        _currHealthBarShowTime = 0.0f;
+
+        _playerHealthSlider.value = _currPlayerHealth;
+        _playerHealthText.text = _playerHealthSlider.value.ToString();
 
         Debug.Log(inDamage);
         if (_currPlayerHealth <= 0.0f)
@@ -977,6 +1002,10 @@ public class PlayerController : MonoBehaviour
     public void ResetPlayerHealth()
     {
         _currPlayerHealth = Health;
+        _currHealthBarShowTime = 0.0f;
+        
+        _playerHealthSlider.value = _currPlayerHealth;
+        _playerHealthText.text = _playerHealthSlider.value.ToString();
     }    
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)

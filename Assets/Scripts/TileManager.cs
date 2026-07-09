@@ -13,6 +13,7 @@ public struct TileData
 public class TileManager : MonoBehaviour
 {
     public int NumberOfTilesToWin {get; private set;}
+    public MouseLockingManager GeneralMouseLockingManager;
     public GameManager GeneralGameManager;
     public Transform Player;
     public Transform WinLocation;
@@ -54,11 +55,14 @@ public class TileManager : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+        float currMinPlayerDistance = float.PositiveInfinity;
 
         int tileCompleteCounter = 0;
+        int indexPlayerIsClosestTo = 0;
         for (int i = 0; i < LevelLayout.Length; i++)
         {
-            if (Vector3.Distance(Player.position, _tilePoss[i]) < LoadDeLoadDistance && !_tileLoaded[i])
+            float playerDistance = Vector3.Distance(Player.position, _tilePoss[i]);
+            if (playerDistance < LoadDeLoadDistance && !_tileLoaded[i])
             {
                 GameObject gameObj = Instantiate(TilePrefabs[LevelLayout[i].TileID], _tilePoss[i], Quaternion.AngleAxis(LevelLayout[i].TileYAngle, Vector3.up));
                 _tiles[i] = gameObj.GetComponent<Tile>();
@@ -66,7 +70,7 @@ public class TileManager : MonoBehaviour
                 _tiles[i].GridPos = _tileCompleted[i] ? -1 : i;
                 _tileLoaded[i] = true;
             }
-            if(Vector3.Distance(Player.position, _tilePoss[i]) > LoadDeLoadDistance && _tileLoaded[i])
+            if(playerDistance > LoadDeLoadDistance && _tileLoaded[i])
                 _tileOutOfRangeTime[i] += dt;
 
             if (_tileOutOfRangeTime[i] > DeLoadTime && _tileLoaded[i])
@@ -77,9 +81,20 @@ public class TileManager : MonoBehaviour
                 _tileOutOfRangeTime[i] = 0.0f;
             }
 
+            GeneralMouseLockingManager.TileImages[i].color = Color.white;
+            if (playerDistance < currMinPlayerDistance)
+            {
+                currMinPlayerDistance = playerDistance;
+                indexPlayerIsClosestTo = i;
+            }
+
             if (_tileCompleted[i])
+            {
                 tileCompleteCounter++;
+                GeneralMouseLockingManager.TileImages[i].color = Color.green;
+            }
         }
+        GeneralMouseLockingManager.TileImages[indexPlayerIsClosestTo].color = Color.blue;
 
         if (tileCompleteCounter >= NumberOfTilesToWin && !GeneralGameManager.PlayerHasFinished)
         {

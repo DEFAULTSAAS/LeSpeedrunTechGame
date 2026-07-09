@@ -39,7 +39,7 @@
                     "id": "852140f2-7766-474d-8707-702459ba45f3",
                     "expectedControlType": "",
                     "processors": "",
-                    "interactions": "Hold",
+                    "interactions": "Hold(duration=1)",
                     "initialStateCheck": false
                 },
                 {
@@ -118,6 +118,15 @@
                     "name": "ResetHealth",
                     "type": "Button",
                     "id": "68711696-9d49-4114-bd68-1d8e57ca781c",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "Hold(duration=1)",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ShowHealth",
+                    "type": "Button",
+                    "id": "ec62b217-7355-4332-b1ec-5246daadd79a",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -573,6 +582,28 @@
                     "processors": "",
                     "groups": "",
                     "action": "ResetHealth",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "544b979a-1a48-4070-92b3-e7f2d9268739",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ShowHealth",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "869eab67-e7ab-43c4-9e03-f087246aac42",
+                    "path": "<Keyboard>/h",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ShowHealth",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
