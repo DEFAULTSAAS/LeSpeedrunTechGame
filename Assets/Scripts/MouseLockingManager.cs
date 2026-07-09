@@ -32,9 +32,9 @@ public class MouseLockingManager : MonoBehaviour
         MouseXSlider.value = _defaultLS.x;
         MouseYSlider.value = _defaultLS.y;
 
-        if (PlayerPrefs.GetFloat("MouseXSpeed") != 0.0f)
+        if (PlayerPrefs.GetFloat("MouseXSpeed") == 0.0f)
             PlayerPrefs.SetFloat("MouseXSpeed", _defaultLS.x);
-        if (PlayerPrefs.GetFloat("MouseYSpeed") != 0.0f)
+        if (PlayerPrefs.GetFloat("MouseYSpeed") == 0.0f)
             PlayerPrefs.SetFloat("MouseYSpeed", _defaultLS.y);
 
         if (PlayerPrefs.GetInt("InvertHori") == 0)
