@@ -1,7 +1,5 @@
 using System;
-using GLTFast.Schema;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -586,6 +584,7 @@ public class PlayerController : MonoBehaviour
                         float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
                         (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
 
+                        jumpDurationReductionFactor = jumpDurationReductionFactor > 1.0f ? 1.0f : jumpDurationReductionFactor;
                         factor = jumpDurationReductionFactor;
                         factor = _nextJumpParams.VerticalJumpDuration / (_nextJumpParams.VerticalJumpDuration * factor);
                         factor = factor < 1.0f ? 1.0f : factor;
@@ -611,6 +610,7 @@ public class PlayerController : MonoBehaviour
                         float jumpDurationReductionFactor = (currMoveSpeed > WalkMoveSpeed) ? 
                         (WalkMoveSpeed / currMoveSpeed) * ForwardSideFlipSpeedReduceFactor : 1.0f;
 
+                        jumpDurationReductionFactor = jumpDurationReductionFactor > 1.0f ? 1.0f : jumpDurationReductionFactor;
                         factor = jumpDurationReductionFactor;
                         factor = _nextJumpParams.VerticalJumpDuration / (_nextJumpParams.VerticalJumpDuration * factor);
                         factor = factor < 1.0f ? 1.0f : factor;

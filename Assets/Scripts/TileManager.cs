@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
@@ -24,6 +25,7 @@ public class TileManager : MonoBehaviour
     public float DeLoadTime = 5.0f;
 
     private Tile[] _tiles;
+    private Dictionary<int, bool> _enemyTiles = new();
 
     private Vector3[] _tilePoss;
     private bool[] _tileLoaded;
@@ -45,7 +47,12 @@ public class TileManager : MonoBehaviour
             _tilePoss[i] = spawnPos;
 
             if (TilePrefabs[LevelLayout[i].TileID].GetComponent<Tile>().EnemySpawners.Length != 0)
+            {
                 NumberOfTilesToWin++;
+                _enemyTiles[i] = true;   
+            }
+            else
+                _enemyTiles[i] = false;
             //Instantiate(TilePrefabs[LevelLayout[i].TileID], spawnPos, Quaternion.AngleAxis(LevelLayout[i].TileYAngle, Vector3.up));        
         }
         Debug.Log(NumberOfTilesToWin);
@@ -81,7 +88,7 @@ public class TileManager : MonoBehaviour
                 _tileOutOfRangeTime[i] = 0.0f;
             }
 
-            GeneralMouseLockingManager.TileImages[i].color = Color.white;
+            GeneralMouseLockingManager.TileImages[i].color = _enemyTiles[i] ? Color.white : Color.gray;
             if (playerDistance < currMinPlayerDistance)
             {
                 currMinPlayerDistance = playerDistance;
