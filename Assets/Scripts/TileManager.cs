@@ -29,6 +29,7 @@ public class TileManager : MonoBehaviour
 
     private Vector3[] _tilePoss;
     private bool[] _tileLoaded;
+    private bool[] _tileBeingLoaded;
     private bool[] _tileCompleted;
     private float[] _tileOutOfRangeTime;
 
@@ -38,6 +39,7 @@ public class TileManager : MonoBehaviour
         _tiles = new Tile[LevelLayout.Length];
         _tilePoss = new Vector3[LevelLayout.Length];
         _tileLoaded = new bool[LevelLayout.Length];
+        _tileBeingLoaded = new bool[LevelLayout.Length];
         _tileCompleted = new bool[LevelLayout.Length];
         _tileOutOfRangeTime = new float[LevelLayout.Length];
 
@@ -69,13 +71,22 @@ public class TileManager : MonoBehaviour
         for (int i = 0; i < LevelLayout.Length; i++)
         {
             float playerDistance = Vector3.Distance(Player.position, _tilePoss[i]);
-            if (playerDistance < LoadDeLoadDistance && !_tileLoaded[i])
+            if (playerDistance < LoadDeLoadDistance && !_tileLoaded[i] && !_tileBeingLoaded[i])
             {
-                GameObject gameObj = Instantiate(TilePrefabs[LevelLayout[i].TileID], _tilePoss[i], Quaternion.AngleAxis(LevelLayout[i].TileYAngle, Vector3.up));
-                _tiles[i] = gameObj.GetComponent<Tile>();
-                _tiles[i].ParentTileManager = this;
-                _tiles[i].GridPos = _tileCompleted[i] ? -1 : i;
-                _tileLoaded[i] = true;
+                AsyncInstantiateOperation<GameObject> gameObj = 
+                InstantiateAsync(TilePrefabs[LevelLayout[i].TileID], 1, _tilePoss[i], Quaternion.AngleAxis(LevelLayout[i].TileYAngle, Vector3.up));
+                
+                _tileBeingLoaded[i] = true;
+                int tileIndex = i; // Needed for lambda capture, i may increment before tile has finished loading.
+
+                gameObj.completed += _ =>
+                {
+                    _tiles[tileIndex] = gameObj.Result[0].GetComponent<Tile>();
+                    _tiles[tileIndex].ParentTileManager = this;
+                    _tiles[tileIndex].GridPos = _tileCompleted[tileIndex] ? -1 : tileIndex;
+                    _tileLoaded[tileIndex] = true;
+                    _tileBeingLoaded[tileIndex] = false;  
+                };
             }
             if(playerDistance > LoadDeLoadDistance && _tileLoaded[i])
                 _tileOutOfRangeTime[i] += dt;
@@ -101,7 +112,7 @@ public class TileManager : MonoBehaviour
                 GeneralMouseLockingManager.TileImages[i].color = Color.green;
             }
         }
-        GeneralMouseLockingManager.TileImages[indexPlayerIsClosestTo].color = Color.blue;
+        GeneralMouseLockingManager.TileImages[indexPlayerIsClosestTo].color = _tileCompleted[indexPlayerIsClosestTo] ? Color.darkGreen : Color.blue;
 
         if (tileCompleteCounter >= NumberOfTilesToWin && !GeneralGameManager.PlayerHasFinished)
         {

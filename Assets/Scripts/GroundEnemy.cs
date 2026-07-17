@@ -140,6 +140,12 @@ public class GroundEnemy : MonoBehaviour, IEnemy
                 DamageOutline.SetActive(true);
                 Invoke(nameof(MakeDamageOutlineInvisible), 0.25f);   
             }
+            
+            if (!IsPursuing)
+            {
+                IsPursuing = true;
+                CurrOutOfRangeAcc = 0.0f;
+            }
 
             if (HurtAudioClip)
                 _enemyAudioSource.PlayOneShot(HurtAudioClip);

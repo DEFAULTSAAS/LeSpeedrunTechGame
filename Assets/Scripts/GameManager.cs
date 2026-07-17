@@ -49,6 +49,13 @@ public class GameManager : MonoBehaviour
         {
             _numPosResets++;
             Player.transform.position = _lastValidPlayerPos;   
+
+            Rigidbody playerRigidbody = Player.GetPlayerRigidbody();
+            if (Mathf.Abs(playerRigidbody.linearVelocity.y) >= 20.0f)
+            {
+                Vector3 currLinVel = playerRigidbody.linearVelocity; currLinVel.y = 0.0f;
+                playerRigidbody.linearVelocity = currLinVel;
+            }
         }
         if (_resetPlayerHealthInputAction.WasPerformedThisFrame())
         {

@@ -47,6 +47,7 @@ public class PlayerInputSystem : MonoBehaviour
     // The amount of time in seconds, before a input action state is removed and no longer processed for player actions.
     public float InputActionStateRemovalDelay = 0.0167f; 
     public float InputActionStateChangeNotedTime = 0.5f;
+    public float InputActionDirNotedThreshold = 0.5f;
     public string MoveInputActionName = "Move";
     public string JumpInputActionName = "Jump";
     public string CrouchInputActionName = "Crouch";
@@ -116,7 +117,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y == 0.0f && 
+            if (state.AxisValue.x < InputActionDirNotedThreshold && Mathf.Abs(state.AxisValue.y) < InputActionDirNotedThreshold && 
                (Time.time - _currActionsTriggerTime[PlayerInputActionTypes.Move]) < 0.2f)
                 return PlayerActions.LeftSide;
             return PlayerActions.None;                                       
@@ -126,7 +127,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y == 0.0f)
+            if (state.AxisValue.x < InputActionDirNotedThreshold && Mathf.Abs(state.AxisValue.y) < InputActionDirNotedThreshold)
                 return PlayerActions.LeftSide;
             return PlayerActions.None;                                       
         }));
@@ -135,7 +136,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y == 0.0f && 
+            if (state.AxisValue.x > InputActionDirNotedThreshold && Mathf.Abs(state.AxisValue.y) < InputActionDirNotedThreshold && 
                (Time.time - _currActionsTriggerTime[PlayerInputActionTypes.Move]) < 0.2f)
                 return PlayerActions.RightSide;
             return PlayerActions.None;                                       
@@ -145,7 +146,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing}, 
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y == 0.0f)
+            if (state.AxisValue.x > InputActionDirNotedThreshold && Mathf.Abs(state.AxisValue.y) < InputActionDirNotedThreshold)
                 return PlayerActions.RightSide;
             return PlayerActions.None;                                       
         }));
@@ -154,7 +155,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y != 0.0f && state.HasChanged)
+            if (state.AxisValue.x < -InputActionDirNotedThreshold && state.AxisValue.y != 0.0f && state.HasChanged)
                 return PlayerActions.ForwardLeftSide;
             return PlayerActions.None;                                       
         }));
@@ -163,7 +164,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing}, 
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x < 0.0f && state.AxisValue.y != 0.0f)
+            if (state.AxisValue.x < -InputActionDirNotedThreshold && state.AxisValue.y != 0.0f)
                 return PlayerActions.ForwardLeftSide;
             return PlayerActions.None;                                       
         }));
@@ -172,7 +173,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Crouch}, 
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y != 0.0f && state.HasChanged)
+            if (state.AxisValue.x > InputActionDirNotedThreshold && state.AxisValue.y != 0.0f && state.HasChanged)
                 return PlayerActions.ForwardRightSide;
             return PlayerActions.None;                                       
         }));
@@ -181,7 +182,7 @@ public class PlayerInputSystem : MonoBehaviour
                                                    PlayerInputActionTypes.Strafing},
                                                    (states) => {
             InputActionState state = _inputActionStates[_playerInputActionTypes.BinarySearch(PlayerInputActionTypes.Move)];
-            if (state.AxisValue.x > 0.0f && state.AxisValue.y != 0.0f)
+            if (state.AxisValue.x > InputActionDirNotedThreshold && state.AxisValue.y != 0.0f)
                 return PlayerActions.ForwardRightSide;
             return PlayerActions.None;                                       
         }));
@@ -294,16 +295,24 @@ public class PlayerInputSystem : MonoBehaviour
                 {
                     if (_inputActionStates[i].ActionType != actionType)
                         continue;
-                    actionStateFound = true;
                     
+                    if (_inputActionStates[i].ActionType == PlayerInputActionTypes.Move && 
+                        context.control.device is Gamepad &&
+                        (Mathf.Acos(Vector2.Dot(_inputActionStates[i].AxisValue, context.action.ReadValue<Vector2>())) * Mathf.Rad2Deg) < 10.0f)
+                    {
+                        actionStateFound = true;
+                        continue;
+                    }
+                    actionStateFound = true;
+                    InputActionState inputActionState = _inputActionStates[i];
+
                     _prevActionsTriggerTime[actionType] = _currActionsTriggerTime[actionType];
                     _currActionsTriggerTime[actionType] = Time.time;
 
-                    InputActionState inputActionState = _inputActionStates[i];
                     inputActionState.ActionTime = Time.time;
+                    inputActionState.HasChanged = GetIsPersistent(actionType);
                     inputActionState.AxisValue = (context.action.expectedControlType == "Vector2") ? 
                                                   context.action.ReadValue<Vector2>() : Vector2.one * float.NegativeInfinity;
-                    inputActionState.HasChanged = GetIsPersistent(actionType);
 
                     _inputActionStates[i] = inputActionState;
                 }

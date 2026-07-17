@@ -983,16 +983,19 @@ public class PlayerController : MonoBehaviour
         _playerHealthSlider.value = _currPlayerHealth;
         _playerHealthText.text = _playerHealthSlider.value.ToString();
 
-        Debug.Log(inDamage);
+        //Debug.Log(inDamage);
         if (_currPlayerHealth <= 0.0f)
         {
             _updatePlayer = false;
             PCAM.gameObject.SetActive(false);
             PlayerCamera.FollowTarget = false;
+            _rigidbody.useGravity = false;
             _playerSoundSource.PlayOneShot(AudioClips[2]);
 
             GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
-            Destroy(gameObject, 4.0f);   
+            Destroy(gameObject, 4.0f);
+            transform.position = transform.position + Vector3.down * -100.0f;   
+            
             Debug.Log("Skill issue!");
         }
         else
@@ -1007,6 +1010,11 @@ public class PlayerController : MonoBehaviour
         _playerHealthSlider.value = _currPlayerHealth;
         _playerHealthText.text = _playerHealthSlider.value.ToString();
     }    
+
+    public Rigidbody GetPlayerRigidbody()
+    {
+        return _rigidbody;
+    }
 
     public static float CalcCurveVelocity(AnimationCurve inCurve, float inT, float inH)
     {
