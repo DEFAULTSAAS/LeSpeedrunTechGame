@@ -21,10 +21,15 @@ public class EnemySpawner : MonoBehaviour
 
     public void SpawnEnemy()
     {
-        GameObject enemyObj = Instantiate(EnemyPrefab, transform.position, transform.rotation);
-        enemyObj.transform.SetParent(ParentTile.transform);
-        IEnemy enemy = enemyObj.GetComponent<IEnemy>();
-        enemy.CurrEnemySpawner = this;
+        AsyncInstantiateOperation<GameObject> enemyObj = 
+        InstantiateAsync(EnemyPrefab, 1, transform.position, transform.rotation);
+        
+        enemyObj.completed += _ =>
+        {
+            enemyObj.Result[0].transform.SetParent(ParentTile.transform);
+            IEnemy enemy = enemyObj.Result[0].GetComponent<IEnemy>();
+            enemy.CurrEnemySpawner = this;  
+        };
     }
 
     public void OnEnemyDestroyed()
