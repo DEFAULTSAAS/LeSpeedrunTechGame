@@ -137,6 +137,7 @@ public class Projectile : MonoBehaviour
             gameObject.transform.position = transform.position;
             
             AudioSource explosionSound = gameObject.AddComponent<AudioSource>();
+            explosionSound.outputAudioMixerGroup = MusicManager.GlobalMixerGroup;
             explosionSound.clip = ExplosionSoundClip;
             explosionSound.volume = ProjectileType == ProjectileTypes.Bomb ? 0.2f : 0.1f;
             explosionSound.minDistance = ProjectileType == ProjectileTypes.Bomb ? 5.0f : 1.0f;

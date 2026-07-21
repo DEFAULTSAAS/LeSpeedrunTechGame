@@ -115,6 +115,7 @@ public class GroundEnemy : MonoBehaviour, IEnemy
             {
                 GameObject gameObject = new();
                 AudioSource audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.outputAudioMixerGroup = MusicManager.GlobalMixerGroup;
                 audioSource.volume = 0.2f;
                 audioSource.minDistance = 5.0f;
                 audioSource.clip = DeathAudioClip;

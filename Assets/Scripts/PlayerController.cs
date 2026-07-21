@@ -232,6 +232,7 @@ public class PlayerController : MonoBehaviour
     public BlasterWeapon PlayerBlasterWeapon;
     public GameObject DestructionEffect;
     public GameObject HealthBar;
+    public GameObject FireEffect;
     public AudioClip[] AudioClips;
     
     public float Health = 100.0f;
@@ -266,6 +267,7 @@ public class PlayerController : MonoBehaviour
     private IWeapon _currWeapon;
     private AudioSource _playerSoundSource;
     private MeshRenderer _localMeshRenderer;
+    private Transform[] _fireTransforms = new Transform[3];
 
     private Slider _playerHealthSlider;
     private TextMeshProUGUI _playerHealthText;
@@ -325,7 +327,15 @@ public class PlayerController : MonoBehaviour
         {
             throw new NullReferenceException("Could not get instance of Player Collision Animation Manager!");
         }
-        
+
+        _fireTransforms[0] = FireEffect.transform.Find("Fire");
+        _fireTransforms[1] = FireEffect.transform.Find("Fire1");
+        _fireTransforms[2] = FireEffect.transform.Find("Fire2");
+
+        PlayerBombLauncher.gameObject.SetActive(true);
+        PlayerBombLauncher.Init();
+        PlayerBombLauncher.gameObject.SetActive(false);
+
         _currWeapon = PlayerBlasterWeapon;
         _playerSoundSource = GetComponent<AudioSource>();
         _localMeshRenderer = PCAM.transform.Find("Anim").GetComponent<MeshRenderer>();
@@ -748,6 +758,16 @@ public class PlayerController : MonoBehaviour
             _rigidbody.linearVelocity = currLinVel;
         }
 
+        if ((_currJumpParams.JumpType == JumpTypes.Long || _currJumpParams.JumpType == JumpTypes.Charge) && _jumpManager.CurrJump.GetRemainingJumpTime() > 0.0f)
+        {
+            FireEffect.SetActive(true);
+            _fireTransforms[0].transform.rotation = _fireTransforms[0].transform.rotation * Quaternion.AngleAxis(360.0f * 10.0f * dt, Vector3.up);   
+            _fireTransforms[1].transform.rotation = _fireTransforms[1].transform.rotation * Quaternion.AngleAxis(360.0f * 10.0f * dt, Vector3.up);   
+            _fireTransforms[2].transform.rotation = _fireTransforms[2].transform.rotation * Quaternion.AngleAxis(360.0f * 10.0f * dt, Vector3.up);   
+        }
+        else
+            FireEffect.SetActive(false);
+
         _playerLookDir = PlayerCamera.GetCameraOrientation() * Vector3.forward;
         _playerLookDirXZ = cameraYRot * Vector3.forward;
         _playerInputDir = (_moveInputAcc.y * _playerLookDirXZ) + (_moveInputAcc.x * (cameraYRot * Vector3.right));
@@ -995,6 +1015,7 @@ public class PlayerController : MonoBehaviour
             GameObject gameObject = Instantiate(DestructionEffect, transform.position, Quaternion.identity);
             Destroy(gameObject, 4.0f);
             transform.position = transform.position + Vector3.down * -100.0f;   
+            _rigidbody.linearVelocity = Vector3.zero;
             
             Debug.Log("Skill issue!");
         }
@@ -1009,6 +1030,11 @@ public class PlayerController : MonoBehaviour
         
         _playerHealthSlider.value = _currPlayerHealth;
         _playerHealthText.text = _playerHealthSlider.value.ToString();
+    }
+
+    public float GetPlayerHealth()
+    {
+        return _currPlayerHealth;
     }    
 
     public Rigidbody GetPlayerRigidbody()

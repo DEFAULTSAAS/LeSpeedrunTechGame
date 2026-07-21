@@ -15,12 +15,20 @@ public class BombLauncher : MonoBehaviour, IWeapon
     private Transform _targetPos;
     private AudioSource _weaponSound;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    bool _hasInit = false;
+    public void Init()
     {
         _targetPos = new GameObject().transform;
         _weaponSound = GetComponent<AudioSource>();
         WeaponAnimator.writeDefaultValuesOnDisable = true;
+        _hasInit = true;   
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        if (!_hasInit)
+            Init();
     }
 
     // Update is called once per frame
